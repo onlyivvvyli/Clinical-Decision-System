@@ -59570,5 +59570,101 @@
         "name": "lisinopril"
       }
     ]
+  },
+  {
+    "scd": {
+      "rxcui": 2001499,
+      "name": "vitamin B12 5 MG/ML Injectable Solution"
+    },
+    "ingredients": [
+      {
+        "rxcui": 11248,
+        "name": "vitamin B12"
+      }
+    ]
+  },
+  {
+    "scd": {
+      "rxcui": 106892,
+      "name": "insulin isophane, human 70 UNT/ML / insulin, regular, human 30 UNT/ML Injectable Suspension [Humulin]"
+    },
+    "ingredients": [
+      {
+        "rxcui": 1605101,
+        "name": "insulin isophane"
+      },
+      {
+        "rxcui": 253182,
+        "name": "insulin, regular, human"
+      },
+      {
+        "rxcui": 1008501,
+        "name": "insulin isophane / insulin, regular, human"
+      },
+      {
+        "rxcui": 253181,
+        "name": "insulin isophane, human"
+      }
+    ]
+  },
+  {
+    "scd": {
+      "rxcui": 351266,
+      "name": "buprenorphine 2 MG / naloxone 0.5 MG Sublingual Tablet"
+    },
+    "ingredients": [
+      {
+        "rxcui": 1819,
+        "name": "buprenorphine"
+      },
+      {
+        "rxcui": 7242,
+        "name": "naloxone"
+      },
+      {
+        "rxcui": 352364,
+        "name": "buprenorphine / naloxone"
+      }
+    ]
+  },
+  {
+    "scd": {
+      "rxcui": 608139,
+      "name": "atomoxetine 100 MG Oral Capsule"
+    },
+    "ingredients": [
+      {
+        "rxcui": 38400,
+        "name": "atomoxetine"
+      }
+    ]
+  },
+  {
+    "scd": {
+      "rxcui": 895996,
+      "name": "120 ACTUAT fluticasone propionate 0.044 MG/ACTUAT Metered Dose Inhaler [Flovent]"
+    },
+    "ingredients": [
+      {
+        "rxcui": 41126,
+        "name": "fluticasone"
+      },
+      {
+        "rxcui": 50121,
+        "name": "fluticasone propionate"
+      }
+    ]
+  },
+  {
+    "scd": {
+      "rxcui": 351136,
+      "name": "albuterol 0.417 MG/ML Inhalation Solution"
+    },
+    "ingredients": [
+      {
+        "rxcui": 435,
+        "name": "albuterol"
+      }
+    ]
   }
 ]

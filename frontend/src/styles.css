@@ -438,7 +438,7 @@ input, select {
 .kg-edge-tooltip {
   position: absolute;
   left: 50%;
-  top: calc(100% + 10px);
+  bottom: calc(100% + 10px);
   transform: translateX(-50%);
   width: min(320px, 78vw);
   display: none;
@@ -608,6 +608,15 @@ input, select {
   cursor: pointer;
 }
 .autocomplete-item span, .selection-banner small, .muted-item { color: var(--muted); }
+.kg-autocomplete-list {
+  max-height: 320px;
+}
+.kg-autocomplete-item strong {
+  line-height: 1.35;
+}
+.kg-autocomplete-item span {
+  font-size: 0.86rem;
+}
 .selection-banner {
   display: grid;
   gap: 4px;
@@ -642,6 +651,10 @@ input, select {
 .pagination-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .pagination-copy { color: var(--muted); font-size: 0.92rem; }
 .pagination-actions { display: flex; gap: 10px; }
+.patient-row-highlight td {
+  background: #eef7ff;
+  animation: patient-row-flash 2.2s ease-out;
+}
 .workflow-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .workflow-step {
   display: flex;
@@ -751,6 +764,32 @@ input, select {
   color: var(--muted);
   font-weight: 600;
 }
+.patient-loading-state {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 28px 16px;
+  border-radius: 6px;
+  background: #f8fbfd;
+  border: 1px solid rgba(43, 111, 156, 0.08);
+}
+.patient-loading-state p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+@keyframes patient-row-flash {
+  0% {
+    background: #dceeff;
+  }
+  55% {
+    background: #eef7ff;
+  }
+  100% {
+    background: transparent;
+  }
+}
+
 @keyframes loading-bounce {
   0%,
   80%,
@@ -991,4 +1030,283 @@ input, select {
   .kg-side-kv {
     grid-template-columns: 1fr;
   }
+}
+
+
+.eyebrow.neutral {
+  color: #5f7282;
+}
+
+.safety-check-prompt-card {
+  width: min(560px, 100%);
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+}
+
+.safety-check-prompt-copy h2 {
+  margin: 0 0 8px;
+  font-size: 1.32rem;
+}
+
+.safety-check-prompt-copy p:last-child {
+  margin: 0;
+  color: var(--muted);
+}
+
+.safety-check-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.detail-modal-card {
+  width: min(1040px, 100%);
+  padding: 0;
+  overflow: auto;
+}
+
+.detail-modal-top {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #fff;
+  border-bottom: 1px solid rgba(28, 47, 61, 0.08);
+}
+
+.sticky-check-header {
+  margin-bottom: 0;
+  padding: 24px 24px 18px;
+}
+
+.sticky-check-actions {
+  padding: 0 24px 18px;
+  margin: 0;
+  background: #fff;
+}
+
+.detail-modal-scroll-body {
+  margin-top: 0;
+  padding: 18px 24px 24px;
+}
+
+@media (max-width: 760px) {
+  .safety-check-prompt-card,
+  .detail-modal-card {
+    width: 100%;
+  }
+
+  .safety-check-prompt-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.compact-review-summary-card {
+  padding: 8px 0 4px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.compact-review-summary-copy h2 {
+  margin: 0;
+  font-size: 1.18rem;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.risk-carousel-shell {
+  position: relative;
+  display: grid;
+  gap: 14px;
+}
+
+.risk-carousel-stage {
+  overflow: hidden;
+}
+
+.risk-carousel-track {
+  display: flex;
+  transition: transform 0.28s ease;
+}
+
+.risk-carousel-slide {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+
+.risk-carousel-slide .risk-item-card {
+  height: 100%;
+}
+
+.risk-carousel-arrow {
+  position: absolute;
+  top: 42%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(32, 79, 112, 0.72);
+  color: #fff;
+  font-size: 1.8rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.risk-carousel-arrow.left {
+  left: 12px;
+}
+
+.risk-carousel-arrow.right {
+  right: 12px;
+}
+
+.risk-carousel-dots {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+}
+
+.risk-carousel-dot {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 999px;
+  background: #d4dee6;
+  cursor: pointer;
+}
+
+.risk-carousel-dot.active {
+  width: 28px;
+  background: #7ea4c0;
+}
+
+@media (max-width: 760px) {
+  .risk-carousel-arrow {
+    width: 38px;
+    height: 38px;
+    top: 38%;
+  }
+
+  .risk-carousel-arrow.left {
+    left: 8px;
+  }
+
+  .risk-carousel-arrow.right {
+    right: 8px;
+  }
+}
+
+.ddi-content-slide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px 0;
+  color: #4d6473;
+  font-size: 0.9rem;
+}
+
+.ddi-page-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.ddi-slide-panel {
+  display: grid;
+  gap: 12px;
+}
+
+
+.compact-review-summary-copy h2 {
+  font-size: 2rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.review-section-header h2 {
+  font-size: 1.35rem;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.review-section-header p,
+.risk-item-tags,
+.risk-item-title-wrap h3,
+.ddi-content-slide-header {
+  display: none;
+}
+
+.review-section {
+  padding-top: 10px;
+}
+
+.ddi-page-stack {
+  gap: 10px;
+}
+
+.ddi-slide-panel {
+  padding-top: 0;
+}
+
+.risk-key-grid {
+  gap: 10px;
+}
+
+.ai-summary-intro {
+  font-size: 1.02rem;
+  line-height: 1.75;
+}
+
+.drug-highlight {
+  font-weight: 700;
+}
+
+.ai-summary-copy {
+  display: grid;
+  gap: 10px;
+}
+
+.ai-summary-label {
+  margin-top: 4px;
+}
+
+.simple-drug-disease-card {
+  padding: 12px 16px;
+}
+
+.drug-disease-sentence-list {
+  display: grid;
+  gap: 10px;
+}
+
+.drug-disease-sentence {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.compact-kg-hero {
+  padding: 16px 22px;
+  min-height: auto;
+}
+
+.compact-kg-hero h1 {
+  margin-bottom: 6px;
+  font-size: clamp(1.9rem, 3vw, 2.8rem);
+}
+
+.compact-kg-hero .eyebrow {
+  margin-bottom: 6px;
+}
+
+.compact-kg-hero p:last-child {
+  max-width: 980px;
 }

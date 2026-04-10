@@ -323,6 +323,86 @@ class KGService:
 
         return {"contraindications": contraindications, "off_label": off_label}
 
+    def search_entity_suggestions(self, query: str, *, entity_type: str = "all", limit: int = 8) -> list[dict]:
+        normalized_query = self._normalize_numeric_string(query)
+        if not self.driver or not normalized_query:
+            return []
+
+        label_filter = (
+            "WHERE any(label IN labels(n) WHERE label IN ['Drug', 'Disease'])"
+            if entity_type == "all"
+            else f"WHERE '{entity_type.capitalize()}' IN labels(n)"
+        )
+
+        suggestions_query = f"""
+        MATCH (n)
+        {label_filter}
+        WITH n,
+             labels(n) AS labels,
+             coalesce(n.name, n.drug_name, n.concept_name, n.snomed_full_name, '') AS display_name,
+             toString(coalesce(n.rxnorm_id, n.rxcui, n.concept_id, n.disease_id, n.snomed_conceptid, id(n))) AS primary_id,
+             [value IN [
+               toString(n.rxnorm_id),
+               toString(n.rxcui),
+               toString(n.concept_id),
+               toString(n.disease_id),
+               toString(n.snomed_conceptid)
+             ] WHERE value IS NOT NULL AND trim(value) <> ''] AS id_candidates
+        WHERE display_name <> ''
+          AND (
+            toLower(display_name) CONTAINS toLower($search_term)
+            OR any(candidate IN id_candidates WHERE candidate CONTAINS $search_term)
+            OR primary_id CONTAINS $search_term
+          )
+        RETURN
+          n,
+          labels,
+          display_name,
+          primary_id,
+          CASE
+            WHEN any(candidate IN id_candidates WHERE candidate = $search_term) OR primary_id = $search_term THEN 0
+            WHEN toLower(display_name) = toLower($search_term) THEN 1
+            WHEN toLower(display_name) STARTS WITH toLower($search_term) THEN 2
+            ELSE 3
+          END AS rank
+        ORDER BY rank ASC, size(display_name) ASC, display_name ASC
+        LIMIT $limit
+        """
+
+        try:
+            with self.driver.session() as session:
+                records = list(
+                    session.run(
+                        suggestions_query,
+                        search_term=normalized_query,
+                        limit=limit,
+                    )
+                )
+        except Neo4jError as exc:
+            raise RuntimeError(f"Neo4j knowledge graph suggestion search failed: {exc.message}") from exc
+
+        suggestions = []
+        for record in records:
+            node = record["n"]
+            labels = record["labels"]
+            props = dict(node)
+            suggestions.append(
+                {
+                    "neo4j_id": str(node.id),
+                    "name": record["display_name"] or f"Node {node.id}",
+                    "primary_id": self._normalize_numeric_string(record["primary_id"]),
+                    "entity_type": "drug" if "Drug" in labels else "disease" if "Disease" in labels else "entity",
+                    "labels": labels,
+                    "ids": {
+                        key: self._normalize_numeric_string(value)
+                        for key, value in props.items()
+                        if key in {"rxnorm_id", "rxcui", "concept_id", "disease_id", "snomed_conceptid"} and value not in (None, "")
+                    },
+                }
+            )
+
+        return suggestions
+
     def search_local_subgraph(self, query: str, *, entity_type: str = "all", limit: int = 200) -> dict:
         normalized_query = self._normalize_numeric_string(query)
         if not self.driver or not normalized_query:

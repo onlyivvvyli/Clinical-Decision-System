@@ -1,22 +1,66 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import SectionCard from "../components/SectionCard";
 import { api } from "../lib/api";
 
 const PAGE_SIZE = 20;
+const PATIENT_LIST_STATE_KEY = "patient-list-state";
+
+function readPatientListState() {
+  try {
+    const raw = sessionStorage.getItem(PATIENT_LIST_STATE_KEY);
+    if (!raw) {
+      return { page: 1, focusPatientId: "" };
+    }
+
+    const parsed = JSON.parse(raw);
+    return {
+      page: Number.isFinite(Number(parsed?.page)) && Number(parsed.page) > 0 ? Number(parsed.page) : 1,
+      focusPatientId: typeof parsed?.focusPatientId === "string" ? parsed.focusPatientId : "",
+    };
+  } catch {
+    return { page: 1, focusPatientId: "" };
+  }
+}
+
+function writePatientListState(nextState) {
+  sessionStorage.setItem(PATIENT_LIST_STATE_KEY, JSON.stringify(nextState));
+}
+
+const initialListState = readPatientListState();
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialListState.page);
+  const [focusPatientId, setFocusPatientId] = useState(initialListState.focusPatientId);
+  const [highlightPatientId, setHighlightPatientId] = useState("");
+  const linkRefs = useRef(new Map());
+  const scrollModeRef = useRef("");
 
   useEffect(() => {
     api
       .getPatients()
       .then((data) => {
         setPatients(data);
-        setPage(1);
+
+        if (focusPatientId) {
+          const focusIndex = data.findIndex((patient) => patient.id === focusPatientId);
+          if (focusIndex >= 0) {
+            const targetPage = Math.floor(focusIndex / PAGE_SIZE) + 1;
+            setPage(targetPage);
+            setHighlightPatientId(focusPatientId);
+            writePatientListState({ page: targetPage, focusPatientId });
+            scrollModeRef.current = "focus-patient";
+            return;
+          }
+        }
+
+        const maxPage = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
+        const nextPage = Math.min(page, maxPage);
+        setPage(nextPage);
+        writePatientListState({ page: nextPage, focusPatientId: "" });
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -25,13 +69,74 @@ export default function PatientsPage() {
   const totalPages = Math.max(1, Math.ceil(patients.length / PAGE_SIZE));
 
   useEffect(() => {
-    setPage((current) => Math.min(current, totalPages));
-  }, [totalPages]);
+    setPage((current) => {
+      const nextPage = Math.min(current, totalPages);
+      if (nextPage !== current) {
+        writePatientListState({ page: nextPage, focusPatientId });
+      }
+      return nextPage;
+    });
+  }, [totalPages, focusPatientId]);
 
   const visiblePatients = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     return patients.slice(start, start + PAGE_SIZE);
   }, [patients, page]);
+
+  useEffect(() => {
+    if (loading || !visiblePatients.length || !scrollModeRef.current) {
+      return;
+    }
+
+    const targetId = scrollModeRef.current === "focus-patient"
+      ? focusPatientId
+      : visiblePatients[0]?.id;
+    const targetLink = targetId ? linkRefs.current.get(targetId) : null;
+    if (!targetLink) {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      targetLink.scrollIntoView({ block: "start", behavior: "auto" });
+      if (scrollModeRef.current === "focus-patient") {
+        targetLink.focus({ preventScroll: true });
+        setFocusPatientId("");
+        writePatientListState({ page, focusPatientId: "" });
+      }
+      scrollModeRef.current = "";
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [focusPatientId, loading, page, visiblePatients]);
+
+  useEffect(() => {
+    if (!highlightPatientId) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setHighlightPatientId("");
+    }, 2200);
+
+    return () => window.clearTimeout(timer);
+  }, [highlightPatientId]);
+
+  const prefetchPatientSummary = (patientId) => {
+    api.prefetchPatientSummary(patientId);
+  };
+
+  const handlePageChange = (nextPage) => {
+    setFocusPatientId("");
+    setHighlightPatientId("");
+    setPage(nextPage);
+    writePatientListState({ page: nextPage, focusPatientId: "" });
+    scrollModeRef.current = "page-start";
+  };
+
+  const handlePatientOpen = (patientId) => {
+    setFocusPatientId(patientId);
+    writePatientListState({ page, focusPatientId: patientId });
+  };
 
   return (
     <div className="page-stack">
@@ -62,14 +167,28 @@ export default function PatientsPage() {
                 </thead>
                 <tbody>
                   {visiblePatients.map((patient) => (
-                    <tr key={patient.id}>
+                    <tr key={patient.id} className={highlightPatientId === patient.id ? "patient-row-highlight" : ""}>
                       <td>{patient.id}</td>
                       <td>{patient.name}</td>
                       <td>{patient.gender}</td>
                       <td>{patient.birth_date || "N/A"}</td>
                       <td>{patient.age}</td>
                       <td>
-                        <Link className="inline-link" to={`/patients/${patient.id}`}>
+                        <Link
+                          className="inline-link"
+                          to={`/patients/${patient.id}`}
+                          state={{ patient }}
+                          ref={(node) => {
+                            if (node) {
+                              linkRefs.current.set(patient.id, node);
+                            } else {
+                              linkRefs.current.delete(patient.id);
+                            }
+                          }}
+                          onClick={() => handlePatientOpen(patient.id)}
+                          onMouseEnter={() => prefetchPatientSummary(patient.id)}
+                          onFocus={() => prefetchPatientSummary(patient.id)}
+                        >
                           View Details
                         </Link>
                       </td>
@@ -89,7 +208,7 @@ export default function PatientsPage() {
                     type="button"
                     className="ghost-button"
                     disabled={page === 1}
-                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    onClick={() => handlePageChange(Math.max(1, page - 1))}
                   >
                     Previous
                   </button>
@@ -97,7 +216,7 @@ export default function PatientsPage() {
                     type="button"
                     className="ghost-button"
                     disabled={page === totalPages}
-                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
                   >
                     Next
                   </button>

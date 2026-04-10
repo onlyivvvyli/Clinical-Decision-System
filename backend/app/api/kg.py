@@ -16,3 +16,16 @@ def search_knowledge_graph(
         return kg_service.search_local_subgraph(query=query, entity_type=entity_type, limit=limit)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get("/knowledge-graph/suggestions")
+def search_knowledge_graph_suggestions(
+    query: str = Query(min_length=1),
+    entity_type: str = Query(default="all", pattern="^(all|drug|disease)$"),
+    limit: int = Query(default=8, ge=1, le=20),
+):
+    try:
+        return kg_service.search_entity_suggestions(query=query, entity_type=entity_type, limit=limit)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+

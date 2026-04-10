@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import AlertPanel from "../components/AlertPanel";
 import PrescribeForm from "../components/PrescribeForm";
 import SectionCard from "../components/SectionCard";
@@ -76,17 +76,54 @@ function DataList({ items, columns, emptyMessage, pageSize = 4 }) {
   );
 }
 
+function LoadingBlock({ message = "Loading patient details..." }) {
+  return (
+    <div className="patient-loading-state" aria-live="polite">
+      <div className="loading-dots" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <p>{message}</p>
+    </div>
+  );
+}
+
+function summarizeReviewCard(result) {
+  const ddiCount = result?.ddi_alerts?.length || 0;
+  const drugDiseaseCount = (result?.drug_disease_alerts?.length || 0) + (result?.drug_disease_references?.length || 0);
+  const total = ddiCount + drugDiseaseCount;
+
+  if (!total) {
+    return {
+      headline: "No clinically relevant risks require review.",
+      detail: "The medication review completed without DDI or drug-disease findings requiring extra review.",
+      total,
+    };
+  }
+
+  return {
+    headline: `${total} clinically relevant risk${total === 1 ? "" : "s"} require review.`,
+    detail: `${ddiCount} DDI and ${drugDiseaseCount} Drug-Disease finding${drugDiseaseCount === 1 ? "" : "s"}.`,
+    total,
+  };
+}
+
 export default function PatientDetailPage() {
   const { id } = useParams();
+  const location = useLocation();
   const { doctor } = useAuth();
+  const previewPatient = location.state?.patient || null;
   const [summary, setSummary] = useState(null);
   const [result, setResult] = useState(null);
   const [pendingPayload, setPendingPayload] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [workflowMessage, setWorkflowMessage] = useState("");
   const [showPrescribeModal, setShowPrescribeModal] = useState(false);
-  const [showCheckModal, setShowCheckModal] = useState(false);
+  const [showCheckPrompt, setShowCheckPrompt] = useState(false);
+  const [showCheckDetails, setShowCheckDetails] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     basic: true,
     conditions: true,
@@ -106,6 +143,13 @@ export default function PatientDetailPage() {
   };
 
   useEffect(() => {
+    setSummary(null);
+    setResult(null);
+    setPendingPayload(null);
+    setWorkflowMessage("");
+    setShowPrescribeModal(false);
+    setShowCheckPrompt(false);
+    setShowCheckDetails(false);
     loadSummary();
   }, [id]);
 
@@ -118,8 +162,10 @@ export default function PatientDetailPage() {
 
   const startWorkflow = (payload) => {
     setPendingPayload(payload);
-    setShowCheckModal(true);
+    setShowCheckPrompt(true);
+    setShowCheckDetails(false);
     setShowPrescribeModal(false);
+    setWorkflowMessage("");
     setResult(null);
   };
 
@@ -134,13 +180,15 @@ export default function PatientDetailPage() {
 
     setBusy(true);
     setError("");
+    setWorkflowMessage("");
 
     if (shouldBypassReview(payload)) {
       setShowPrescribeModal(false);
       try {
-        await api.submitPrescription(payload);
+        const data = await api.submitPrescription(payload);
         setPendingPayload(null);
         setResult(null);
+        setWorkflowMessage(data.message || "Prescription submitted.");
         loadSummary();
       } catch (err) {
         setError(err.message);
@@ -157,6 +205,7 @@ export default function PatientDetailPage() {
       setResult(data);
     } catch (err) {
       setError(err.message);
+      setShowPrescribeModal(true);
     } finally {
       setBusy(false);
     }
@@ -171,9 +220,11 @@ export default function PatientDetailPage() {
     setError("");
     try {
       const data = await api.submitPrescription(pendingPayload);
-      setResult(data);
+      setWorkflowMessage(data.message || "Prescription submitted.");
+      setResult(null);
       setPendingPayload(null);
-      setShowCheckModal(false);
+      setShowCheckPrompt(false);
+      setShowCheckDetails(false);
       loadSummary();
     } catch (err) {
       setError(err.message);
@@ -182,9 +233,9 @@ export default function PatientDetailPage() {
     }
   };
 
-
   const handleBackToPrescribe = () => {
-    setShowCheckModal(false);
+    setShowCheckPrompt(false);
+    setShowCheckDetails(false);
     setShowPrescribeModal(true);
   };
 
@@ -192,44 +243,51 @@ export default function PatientDetailPage() {
     setPendingPayload(null);
     setResult(null);
     setError("");
-    setShowCheckModal(false);
+    setShowCheckPrompt(false);
+    setShowCheckDetails(false);
+    setWorkflowMessage("Prescription review was dismissed without changing the current medication list.");
   };
 
-  if (loading) {
-    return <div className="empty-state">Loading patient summary...</div>;
-  }
-
-  if (error && !summary) {
-    return <div className="error-banner">{error}</div>;
-  }
-
-  const filteredConditions = summary.current_conditions.filter((condition) => (
+  const patientHeader = summary?.patient || previewPatient || {
+    id,
+    name: `Patient ${id}`,
+    gender: "Unknown",
+    birth_date: "",
+    age: "Unknown",
+  };
+  const currentConditions = summary?.current_conditions || [];
+  const currentMedications = summary?.current_medications || [];
+  const medicationHistory = summary?.medication_history || [];
+  const filteredConditions = currentConditions.filter((condition) => (
     conditionStatusFilter === "all" || String(condition.clinical_status || "").trim().toLowerCase() === conditionStatusFilter
   ));
+  const reviewSummary = summarizeReviewCard(result);
 
   return (
     <div className="page-stack">
       <section className="hero-banner patient-hero compact">
         <div>
           <p className="eyebrow">Patient Detail</p>
-          <h1>{summary.patient.name}</h1>
+          <h1>{patientHeader.name}</h1>
           <p>
-            {summary.patient.id} | {summary.patient.gender} | DOB {summary.patient.birth_date || "N/A"} | Age {summary.patient.age}
+            {patientHeader.id} | {patientHeader.gender} | DOB {patientHeader.birth_date || "N/A"} | Age {patientHeader.age}
           </p>
         </div>
         <div className="hero-metrics">
           <div className="status-panel">
             <span className="label">Current meds</span>
-            <strong>{summary.current_medications.length}</strong>
+            <strong>{loading && !summary ? "..." : currentMedications.length}</strong>
           </div>
           <div className="status-panel">
             <span className="label">Active conditions</span>
-            <strong>{summary.current_conditions.length}</strong>
+            <strong>{loading && !summary ? "..." : currentConditions.length}</strong>
           </div>
         </div>
       </section>
 
-      {error ? <div className="error-banner">{error}</div> : null}
+      {workflowMessage ? <div className="result-banner approved">{workflowMessage}</div> : null}
+      {error && !summary ? <div className="error-banner">{error}</div> : null}
+      {error && summary ? <div className="error-banner">{error}</div> : null}
 
       <div className="patient-sections">
         <SectionCard
@@ -240,11 +298,11 @@ export default function PatientDetailPage() {
           onToggle={(nextValue) => toggleSection("basic", nextValue)}
         >
           <div className="kv-grid">
-            <div><span>Patient ID</span><strong>{summary.patient.id}</strong></div>
-            <div><span>Name</span><strong>{summary.patient.name}</strong></div>
-            <div><span>Gender</span><strong>{summary.patient.gender}</strong></div>
-            <div><span>Birth Date</span><strong>{summary.patient.birth_date || "N/A"}</strong></div>
-            <div><span>Age</span><strong>{summary.patient.age}</strong></div>
+            <div><span>Patient ID</span><strong>{patientHeader.id}</strong></div>
+            <div><span>Name</span><strong>{patientHeader.name}</strong></div>
+            <div><span>Gender</span><strong>{patientHeader.gender}</strong></div>
+            <div><span>Birth Date</span><strong>{patientHeader.birth_date || "N/A"}</strong></div>
+            <div><span>Age</span><strong>{patientHeader.age}</strong></div>
           </div>
         </SectionCard>
 
@@ -255,27 +313,33 @@ export default function PatientDetailPage() {
           expanded={expandedSections.conditions}
           onToggle={(nextValue) => toggleSection("conditions", nextValue)}
         >
-          <div className="section-filter-row">
-            <label className="table-filter">
-              <span>Status</span>
-              <select value={conditionStatusFilter} onChange={(event) => setConditionStatusFilter(event.target.value)}>
-                <option value="all">All</option>
-                <option value="active">Active</option>
-                <option value="resolved">Resolved</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </label>
-          </div>
-          <DataList
-            items={filteredConditions}
-            columns={[
-              { key: "name", label: "Condition" },
-              { key: "code", label: "Code" },
-              { key: "clinical_status", label: "Clinical Status" },
-              { key: "onset_date", label: "Onset Date" },
-            ]}
-            emptyMessage="No conditions available for the selected status."
-          />
+          {loading && !summary ? (
+            <LoadingBlock message="Loading current conditions..." />
+          ) : (
+            <>
+              <div className="section-filter-row">
+                <label className="table-filter">
+                  <span>Status</span>
+                  <select value={conditionStatusFilter} onChange={(event) => setConditionStatusFilter(event.target.value)}>
+                    <option value="all">All</option>
+                    <option value="active">Active</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </label>
+              </div>
+              <DataList
+                items={filteredConditions}
+                columns={[
+                  { key: "name", label: "Condition" },
+                  { key: "code", label: "Code" },
+                  { key: "clinical_status", label: "Clinical Status" },
+                  { key: "onset_date", label: "Onset Date" },
+                ]}
+                emptyMessage="No conditions available for the selected status."
+              />
+            </>
+          )}
         </SectionCard>
 
         <SectionCard
@@ -291,17 +355,21 @@ export default function PatientDetailPage() {
             </button>
           }
         >
-          <DataList
-            items={summary.current_medications}
-            columns={[
-              { key: "name", label: "Medication" },
-              { key: "code", label: "Code" },
-              { key: "status", label: "Status" },
-              { key: "authored_on", label: "Authored On" },
-              { key: "dosage_text", label: "Dosage" },
-            ]}
-            emptyMessage="No current medications available."
-          />
+          {loading && !summary ? (
+            <LoadingBlock message="Loading current medications..." />
+          ) : (
+            <DataList
+              items={currentMedications}
+              columns={[
+                { key: "name", label: "Medication" },
+                { key: "code", label: "Code" },
+                { key: "status", label: "Status" },
+                { key: "authored_on", label: "Authored On" },
+                { key: "dosage_text", label: "Dosage" },
+              ]}
+              emptyMessage="No current medications available."
+            />
+          )}
         </SectionCard>
 
         <SectionCard
@@ -311,16 +379,20 @@ export default function PatientDetailPage() {
           expanded={expandedSections.history}
           onToggle={(nextValue) => toggleSection("history", nextValue)}
         >
-          <DataList
-            items={summary.medication_history}
-            columns={[
-              { key: "name", label: "Medication" },
-              { key: "status", label: "Status" },
-              { key: "authored_on", label: "Authored On" },
-              { key: "period", label: "Relevant Period" },
-            ]}
-            emptyMessage="No historical medications available."
-          />
+          {loading && !summary ? (
+            <LoadingBlock message="Loading medication history..." />
+          ) : (
+            <DataList
+              items={medicationHistory}
+              columns={[
+                { key: "name", label: "Medication" },
+                { key: "status", label: "Status" },
+                { key: "authored_on", label: "Authored On" },
+                { key: "period", label: "Relevant Period" },
+              ]}
+              emptyMessage="No historical medications available."
+            />
+          )}
         </SectionCard>
       </div>
 
@@ -352,40 +424,72 @@ export default function PatientDetailPage() {
         </div>
       ) : null}
 
-      {showCheckModal ? (
+      {showCheckPrompt ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
-          <div className="modal-card check-modal-card">
-            <div className="section-header check-modal-header">
-              <div>
-                <p className="eyebrow">Safety Check</p>
-                <h2>{busy ? "Running medication review" : result ? "Review complete" : "Review status"}</h2>
-                <p>The safety check is triggered automatically when the doctor submits. After the review, the doctor can abandon the order or continue prescribing to add it to the patient's medication list.</p>
-              </div>
+          <div className="modal-card safety-check-prompt-card">
+            <div className="safety-check-prompt-copy">
+              <p className="eyebrow neutral">Clinical Safety Checking</p>
+              <h2>{busy && !result ? "Running medication review" : reviewSummary.headline}</h2>
+              <p>{busy && !result ? "Please wait while the system completes the medication review." : reviewSummary.detail}</p>
+            </div>
+            <div className="safety-check-prompt-actions">
               <button
                 type="button"
-                className="icon-action close-action"
-                onClick={handleAbandonPrescription}
-                aria-label="Close safety check dialog"
+                className="ghost-button"
+                onClick={handleBackToPrescribe}
                 disabled={busy}
               >
-                <strong>x</strong>
+                Back to Prescribe
+              </button>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={handleAbandonPrescription}
+                disabled={busy}
+              >
+                Abandon Prescription
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => {
+                  setShowCheckPrompt(false);
+                  setShowCheckDetails(true);
+                }}
+                disabled={busy || !result}
+              >
+                Show Details
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
 
-            {busy ? (
-              <div className="check-loading-state" aria-live="polite">
-                <div className="loading-dots" aria-hidden="true">
-                  <span></span>
-                  <span></span>
-                  <span></span>
+      {showCheckDetails ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal-card check-modal-card detail-modal-card">
+            <div className="detail-modal-top">
+              <div className="section-header check-modal-header sticky-check-header">
+                <div>
+                  <p className="eyebrow neutral">Safety Check Details</p>
+                  <h2>Clinical Safety Review</h2>
+                  <p>Review the findings in detail before deciding whether to continue the prescription.</p>
                 </div>
-                <p>Loading...</p>
+                <button
+                  type="button"
+                  className="icon-action close-action"
+                  onClick={() => {
+                    setShowCheckDetails(false);
+                    setShowCheckPrompt(true);
+                  }}
+                  aria-label="Close safety check details"
+                >
+                  <strong>x</strong>
+                </button>
               </div>
-            ) : null}
 
-            {!busy && result ? (
-              <div className="check-modal-results">
-                <div className="decision-actions">
+              {!busy && result ? (
+                <div className="decision-actions sticky-check-actions">
                   <button
                     type="button"
                     className="ghost-button"
@@ -411,6 +515,11 @@ export default function PatientDetailPage() {
                     Continue Prescribe
                   </button>
                 </div>
+              ) : null}
+            </div>
+
+            {!busy && result ? (
+              <div className="check-modal-results detail-modal-scroll-body">
                 <AlertPanel result={result} />
               </div>
             ) : null}
@@ -422,8 +531,3 @@ export default function PatientDetailPage() {
     </div>
   );
 }
-
-
-
-
-

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 
 function EmptyState({ message }) {
@@ -149,6 +149,156 @@ function parseSummaryMessage(message) {
   return { introLines, conditionBullets, notes };
 }
 
+function renderHighlightedDrugLine(line, alert) {
+  const text = String(line || "");
+  const tokens = [
+    alert?.new_drug_scd_name,
+    alert?.new_drug_name,
+    alert?.active_medication_name,
+    alert?.active_drug_name,
+  ]
+    .filter(Boolean)
+    .map((item) => String(item).trim())
+    .filter(Boolean);
+
+  if (!text || !tokens.length) {
+    return text;
+  }
+
+  const uniqueTokens = [...new Set(tokens)].sort((a, b) => b.length - a.length);
+  const lowerText = text.toLowerCase();
+  const matches = [];
+
+  uniqueTokens.forEach((token) => {
+    const lowerToken = token.toLowerCase();
+    let startIndex = 0;
+
+    while (startIndex < lowerText.length) {
+      const foundAt = lowerText.indexOf(lowerToken, startIndex);
+      if (foundAt === -1) {
+        break;
+      }
+
+      matches.push({
+        start: foundAt,
+        end: foundAt + token.length,
+      });
+      startIndex = foundAt + token.length;
+    }
+  });
+
+  matches.sort((a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
+
+  const merged = [];
+  matches.forEach((match) => {
+    const overlaps = merged.some((item) => !(match.end <= item.start || match.start >= item.end));
+    if (!overlaps) {
+      merged.push(match);
+    }
+  });
+
+  if (!merged.length) {
+    return text;
+  }
+
+  const nodes = [];
+  let cursor = 0;
+
+  merged.forEach((match, index) => {
+    if (cursor < match.start) {
+      nodes.push(<span key={`text-${index}-${cursor}`}>{text.slice(cursor, match.start)}</span>);
+    }
+
+    nodes.push(
+      <strong key={`drug-${index}-${match.start}`} className="drug-highlight">
+        {text.slice(match.start, match.end)}
+      </strong>,
+    );
+    cursor = match.end;
+  });
+
+  if (cursor < text.length) {
+    nodes.push(<span key={`text-tail-${cursor}`}>{text.slice(cursor)}</span>);
+  }
+
+  return nodes;
+}
+
+function classifyDrugDiseaseSeverity(type) {
+  return type === "CONTRAINDICATION" ? "high" : "moderate";
+}
+
+function formatStrictness(value) {
+  if (!value) {
+    return "N/A";
+  }
+
+  const normalized = String(value).replaceAll("_", " ");
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function summarizeRiskCounts(result) {
+  const ddiCount = result?.ddi_alerts?.length || 0;
+  const drugDiseaseCount = (result?.drug_disease_alerts?.length || 0) + (result?.drug_disease_references?.length || 0);
+  const total = ddiCount + drugDiseaseCount;
+
+  const primaryObjects = [];
+  const firstDdi = result?.ddi_alerts?.[0];
+  const firstDrugDisease = result?.drug_disease_alerts?.[0] || result?.drug_disease_references?.[0];
+
+  if (firstDdi) {
+    const trigger = firstDdi.new_drug_in_name || firstDdi.new_drug_name || "Selected drug";
+    const active = firstDdi.active_medication_name || firstDdi.active_drug_name || "current medication";
+    primaryObjects.push(`${trigger} and ${active}`);
+  }
+  if (firstDrugDisease) {
+    const triggerDrug = firstDrugDisease.new_drug_name || "Selected drug";
+    const disease = firstDrugDisease.disease_name || "active condition";
+    primaryObjects.push(`${triggerDrug} and ${disease}`);
+  }
+
+  if (!total) {
+    return {
+      total,
+      ddiCount,
+      drugDiseaseCount,
+      headline: "No clinically significant risks were returned for this review.",
+      summary: "No DDI or drug-disease findings require immediate review.",
+    };
+  }
+
+  const plural = total === 1 ? "risk" : "risks";
+  const objectSummary = primaryObjects.length ? ` involving ${primaryObjects.join("; ")}` : "";
+
+  return {
+    total,
+    ddiCount,
+    drugDiseaseCount,
+    headline: `${total} clinically relevant ${plural} require review${objectSummary}.`,
+    summary: `${ddiCount} DDI finding${ddiCount === 1 ? "" : "s"} and ${drugDiseaseCount} Drug-Disease finding${drugDiseaseCount === 1 ? "" : "s"}.`,
+  };
+}
+
+function groupDrugDiseaseItems(items) {
+  const grouped = new Map();
+
+  (items || []).forEach((item) => {
+    const drugName = item.new_drug_name || `RxCUI ${item.new_drug_rxcui || "Unknown"}`;
+    const key = `${item.type || "Drug-Disease"}-${drugName}`;
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        key,
+        type: item.type || "Drug-Disease",
+        drugName,
+        items: [],
+      });
+    }
+    grouped.get(key).items.push(item);
+  });
+
+  return [...grouped.values()];
+}
+
 function GraphEvidenceCard({ alert, evidenceItems }) {
   const prescribingDrug =
     alert.new_drug_scd_name || alert.candidate_drug?.scd_name || alert.candidate_drug?.name || alert.new_drug_name;
@@ -223,6 +373,39 @@ function GraphEvidenceCard({ alert, evidenceItems }) {
   );
 }
 
+function DrugDiseaseEvidenceCard({ item }) {
+  const drugName = item.new_drug_name || `RxCUI ${item.new_drug_rxcui || "Unknown"}`;
+  const diseaseName = item.disease_name || "Unknown condition";
+  const relationLabel = item.type === "CONTRAINDICATION" ? "contraindication" : "off-label use";
+
+  return (
+    <section className="ddi-section-card disease-evidence-card">
+      <div className="ddi-section-header">
+        <h3>Knowledge Graph Evidence</h3>
+        <p>Active disease match from the current clinical context.</p>
+      </div>
+
+      <div className="disease-kg-grid">
+        <div className="disease-kg-node">
+          <span>Drug</span>
+          <strong>{drugName}</strong>
+        </div>
+        <div className="disease-kg-link">
+          <div className="kg-vertical-line" />
+          <div className="kg-edge-chip disease-relation-chip">
+            <strong>{relationLabel}</strong>
+          </div>
+          <div className="kg-arrow-down" />
+        </div>
+        <div className="disease-kg-node condition-node">
+          <span>Active Disease</span>
+          <strong>{diseaseName}</strong>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function AIClinicalSummary({ alert, alertKey }) {
   const [summary, setSummary] = useState({ introLines: [], conditionBullets: [], notes: [] });
   const [status, setStatus] = useState("idle");
@@ -260,7 +443,7 @@ function AIClinicalSummary({ alert, alertKey }) {
     return () => {
       cancelled = true;
     };
-  }, [alertKey]);
+  }, [alert, alertKey]);
 
   if (!promptPayload) {
     return (
@@ -282,7 +465,7 @@ function AIClinicalSummary({ alert, alertKey }) {
       </div>
       <div className="ai-summary-copy">
         {summary.introLines.map((line, index) => (
-          <p key={`${line}-${index}`}>{line}</p>
+          <p key={`${line}-${index}`} className="ai-summary-intro">{renderHighlightedDrugLine(line, alert)}</p>
         ))}
         {summary.conditionBullets.length ? <p className="ai-summary-label">Top conditions include:</p> : null}
         {summary.conditionBullets.length ? (
@@ -305,63 +488,139 @@ function AIClinicalSummary({ alert, alertKey }) {
   );
 }
 
-function DDIAlertList({ items, emptyMessage }) {
-  if (!items?.length) {
-    return <EmptyState message={emptyMessage} />;
-  }
+function AlertTag({ children, tone = "neutral" }) {
+  return <span className={`alert-tag ${tone}`}>{children}</span>;
+}
+
+function DdiRiskCard({ alert, index }) {
+  const alertKey = `${alert.new_drug_rxcui || "new"}-${alert.active_drug_rxcui || "active"}-${index}`;
+  const evidenceItems = alert.evidence_payload?.top_conditions || alert.evidence || [];
+  const triggerDrug = alert.new_drug_scd_name || alert.new_drug_name || "Selected drug";
+  const activeDrug = alert.active_medication_name || alert.active_drug_name || "Current medication";
 
   return (
-    <div className="stack">
-      {items.map((alert, index) => {
-        const alertKey = `${alert.new_drug_rxcui || "new"}-${alert.active_drug_rxcui || "active"}-${index}`;
-        const evidenceItems = alert.evidence_payload?.top_conditions || alert.evidence || [];
-
-        return (
-          <div key={alertKey} className="alert-item high ddi-alert-item ddi-two-section-card">
-            <GraphEvidenceCard alert={alert} evidenceItems={evidenceItems} />
-            <AIClinicalSummary alert={alert} alertKey={alertKey} />
+    <article className="risk-item-card">
+      <div className="ddi-page-stack">
+        <section className="ddi-slide-panel">
+          <div className="ddi-content-slide-header">
+            <strong>AI Clinical Summary</strong>
           </div>
-        );
-      })}
-    </div>
+          <AIClinicalSummary alert={alert} alertKey={alertKey} />
+        </section>
+
+        <section className="ddi-slide-panel">
+          <div className="ddi-content-slide-header">
+            <strong>KG Evidence</strong>
+          </div>
+          <GraphEvidenceCard alert={alert} evidenceItems={evidenceItems} />
+        </section>
+      </div>
+    </article>
   );
 }
 
-function DrugDiseaseSummaryCard({ alert }) {
-  const candidateName = alert.candidate_drug?.name || alert.new_drug_name || `RxCUI ${alert.new_drug_rxcui}`;
-  const diseaseName = alert.disease_name || "Unknown condition";
-  const isContra = alert.type === "CONTRAINDICATION";
-  const relationLabel = isContra ? "contraindication" : "off-label use";
-
+function DrugDiseaseGroupCard({ group }) {
   return (
-    <div className={`alert-item ${isContra ? "high" : "moderate"}`}>
-      <p>
-        The patient currently has <strong>{diseaseName}</strong> as an active condition. <strong>{candidateName}</strong>
-        {` has a `}
-        <strong>{relationLabel}</strong>
-        {` link with ${diseaseName} in the knowledge graph.`}
-      </p>
-    </div>
+    <article className="risk-item-card drug-disease-card simple-drug-disease-card">
+      <div className="drug-disease-sentence-list">
+        {group.items.map((item, index) => {
+          const drugName = item.new_drug_name || group.drugName || "This drug";
+          const diseaseName = item.disease_name || "the current disease";
+          const relationText = item.type === "CONTRAINDICATION"
+            ? "is contraindicated for"
+            : "is off-label use for";
+
+          return (
+            <p key={`${group.key}-${item.disease_id || index}`} className="drug-disease-sentence">
+              <strong>{drugName}</strong> {relationText} <strong>{diseaseName}</strong>.
+            </p>
+          );
+        })}
+      </div>
+    </article>
   );
 }
 
-function GenericAlertList({ items, emptyMessage }) {
-  if (!items?.length) {
-    return <EmptyState message={emptyMessage} />;
-  }
+function RiskSection({ title, subtitle, items, emptyMessage, renderItem }) {
+  const useCarousel = items.length > 1;
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [items.length, title]);
+
+  const showPrevious = () => {
+    setActiveIndex((current) => (current - 1 + items.length) % items.length);
+  };
+
+  const showNext = () => {
+    setActiveIndex((current) => (current + 1) % items.length);
+  };
 
   return (
-    <div className="stack">
-      {items.map((alert, index) => (
-        <DrugDiseaseSummaryCard key={`${alert.type || alert.new_drug_rxcui || index}-${index}`} alert={alert} />
-      ))}
-    </div>
+    <section className="review-section">
+      <div className="review-section-header">
+        <div>
+          <h2>{title}</h2>
+        </div>
+      </div>
+
+      {items.length ? (
+        useCarousel ? (
+          <div className="risk-carousel-shell">
+            <button type="button" className="risk-carousel-arrow left" onClick={showPrevious} aria-label={`Previous ${title} item`}>
+              {'<'}
+            </button>
+            <div className="risk-carousel-stage">
+              <div className="risk-carousel-track" style={{ transform: `translateX(-${activeIndex * 100}%)` }}>
+                {items.map((item, index) => (
+                  <div key={item.key || `${title}-${index}`} className="risk-carousel-slide">
+                    {renderItem(item, index)}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button type="button" className="risk-carousel-arrow right" onClick={showNext} aria-label={`Next ${title} item`}>
+              {'>'}
+            </button>
+            <div className="risk-carousel-dots" role="tablist" aria-label={`${title} pages`}>
+              {items.map((item, index) => (
+                <button
+                  key={`${item.key || title}-dot-${index}`}
+                  type="button"
+                  className={index === activeIndex ? "risk-carousel-dot active" : "risk-carousel-dot"}
+                  onClick={() => setActiveIndex(index)}
+                  aria-label={`${title} item ${index + 1}`}
+                  aria-pressed={index === activeIndex}
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="stack risk-list">
+            {items.map((item, index) => (
+              <div key={item.key || `${title}-${index}`} className="risk-list-item">
+                {renderItem(item, index)}
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
+        <EmptyState message={emptyMessage} />
+      )}
+    </section>
   );
 }
 
 export default function AlertPanel({ result }) {
   const ddiRules = result?.appliedRules?.ddi;
   const drugDiseaseRules = result?.appliedRules?.drug_disease;
+  const ddiItems = result?.ddi_alerts || [];
+  const drugDiseaseItems = useMemo(
+    () => groupDrugDiseaseItems([...(result?.drug_disease_alerts || []), ...(result?.drug_disease_references || [])]),
+    [result],
+  );
+  const totals = summarizeRiskCounts(result);
   const ddiEmptyMessage = ddiRules?.enabled
     ? "No DDI alerts returned for the current check."
     : "DDI check was skipped because DDI strictness is off.";
@@ -371,27 +630,28 @@ export default function AlertPanel({ result }) {
       : result?.drug_disease_module?.message || "No drug-disease results returned for the current check.";
 
   return (
-    <div className="alert-grid single-column-alerts">
-      <div className="card alert-card">
-        <div className="section-header">
-          <div>
-            <h2>Drug-Drug Interaction Alerts</h2>
-            <p>Structured graph evidence with a separate AI-generated clinical summary.</p>
+    <div className="safety-review-layout">
+      <div className="safety-review-main">
+        <section className="review-summary-card compact-review-summary-card">
+          <div className="review-summary-copy compact-review-summary-copy">
+            <h2>{totals.ddiCount} DDI findings and {totals.drugDiseaseCount} Drug-Disease findings.</h2>
           </div>
-        </div>
-        <DDIAlertList items={result?.ddi_alerts || []} emptyMessage={ddiEmptyMessage} />
-      </div>
+        </section>
 
-      <div className="card alert-card">
-        <div className="section-header">
-          <div>
-            <h2>Drug-Disease Results</h2>
-            <p>Contraindications block prescribing; off-label links are informational</p>
-          </div>
-        </div>
-        <GenericAlertList
-          items={[...(result?.drug_disease_alerts || []), ...(result?.drug_disease_references || [])]}
+        <RiskSection
+          title="DDI Findings"
+          subtitle="Review drug-drug interaction findings first."
+          items={ddiItems}
+          emptyMessage={ddiEmptyMessage}
+          renderItem={(item, index) => <DdiRiskCard key={`${item.new_drug_rxcui || index}-${item.active_drug_rxcui || index}`} alert={item} index={index} />}
+        />
+
+        <RiskSection
+          title="Drug-Disease Findings"
+          subtitle="Disease-related findings are grouped by drug and expanded by active disease."
+          items={drugDiseaseItems}
           emptyMessage={drugDiseaseEmptyMessage}
+          renderItem={(item) => <DrugDiseaseGroupCard key={item.key} group={item} />}
         />
       </div>
     </div>

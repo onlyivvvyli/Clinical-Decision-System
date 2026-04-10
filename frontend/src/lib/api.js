@@ -71,6 +71,7 @@ export const api = {
     }),
   getPatients: () => request("/patients"),
   getPatientSummary: (patientId) => request(`/patients/${patientId}/summary`),
+  prefetchPatientSummary: (patientId) => request(`/patients/${patientId}/summary`).catch(() => null),
   searchScds: (query) => request(`/mappings/scds?query=${encodeURIComponent(query)}`),
   checkPrescription: (payload) =>
     request("/prescriptions/check", {
@@ -96,5 +97,6 @@ export const api = {
     }),
   getAlerts: () => request("/alerts"),
   searchKnowledgeGraph: (query, entityType = "all") => request(`/knowledge-graph/search?query=${encodeURIComponent(query)}&entity_type=${encodeURIComponent(entityType)}`),
+  searchKnowledgeGraphSuggestions: (query, entityType = "all") => request(`/knowledge-graph/suggestions?query=${encodeURIComponent(query)}&entity_type=${encodeURIComponent(entityType)}`),
 };
 

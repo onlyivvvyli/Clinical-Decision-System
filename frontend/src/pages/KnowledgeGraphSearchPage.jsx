@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { api } from "../lib/api";
 
@@ -35,6 +35,13 @@ function getNodeSubtitle(node) {
 
 function normalizeSearchType(value) {
   return value === "all" ? "all entities" : value;
+}
+
+function formatSuggestionMeta(item) {
+  const ids = Object.entries(item.ids || {})
+    .map(([key, value]) => `${key}: ${value}`)
+    .join(" | ");
+  return ids || `ID ${item.primary_id}`;
 }
 
 function sortRelationships(items, sortBy, sortDirection) {
@@ -100,16 +107,44 @@ function buildGraphLayout(centerNode, relationships) {
   return { width, height, nodes, edges };
 }
 
-function SearchControls({ query, setQuery, entityType, setEntityType, onSubmit, loading }) {
+function SearchControls({
+  query,
+  setQuery,
+  entityType,
+  setEntityType,
+  onSubmit,
+  loading,
+  suggestions,
+  searchingSuggestions,
+  onSelectSuggestion,
+}) {
+  const showSuggestions = query.trim() && (searchingSuggestions || suggestions.length > 0);
+
   return (
     <form className="kg-search-form" onSubmit={onSubmit}>
-      <label className="full-width">
+      <label className="full-width autocomplete-field">
         Search by drug or disease name or ID
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Try metformin, 860975, diabetes, or 44054006"
         />
+        {showSuggestions ? (
+          <div className="autocomplete-list kg-autocomplete-list">
+            {searchingSuggestions ? <div className="autocomplete-item muted-item">Searching...</div> : null}
+            {suggestions.map((item) => (
+              <button
+                key={`${item.entity_type}-${item.neo4j_id}`}
+                type="button"
+                className="autocomplete-item kg-autocomplete-item"
+                onClick={() => onSelectSuggestion(item)}
+              >
+                <strong>{item.name}</strong>
+                <span>{item.entity_type === "drug" ? "Drug" : "Disease"} | {formatSuggestionMeta(item)}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
       </label>
       <label>
         Search scope
@@ -317,7 +352,7 @@ function GraphPanel({
           })}
         </svg>
         <div className="kg-graph-caption">
-          Showing {visibleRelationships.length} 1-hop relationships from the queried node. Edge details appear on hover or when selected.
+          Showing {visibleRelationships.length} relationships from the queried node. Edge details appear on hover or when selected.
         </div>
       </div>
 
@@ -425,6 +460,8 @@ function RawPanel({ payload }) {
 export default function KnowledgeGraphSearchPage() {
   const [query, setQuery] = useState("");
   const [entityType, setEntityType] = useState("all");
+  const [suggestions, setSuggestions] = useState([]);
+  const [searchingSuggestions, setSearchingSuggestions] = useState(false);
   const [activeTab, setActiveTab] = useState("table");
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -439,6 +476,29 @@ export default function KnowledgeGraphSearchPage() {
   const [sortDirection, setSortDirection] = useState("desc");
   const [selectedGraphItem, setSelectedGraphItem] = useState(null);
 
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setSuggestions([]);
+      setSearchingSuggestions(false);
+      return undefined;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearchingSuggestions(true);
+      try {
+        const data = await api.searchKnowledgeGraphSuggestions(trimmed, entityType);
+        setSuggestions(Array.isArray(data) ? data : []);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setSearchingSuggestions(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [query, entityType]);
+
   const handleSearch = async (event) => {
     event.preventDefault();
     const trimmed = query.trim();
@@ -448,6 +508,7 @@ export default function KnowledgeGraphSearchPage() {
 
     setStatus("loading");
     setError("");
+    setSuggestions([]);
     setSelectedGraphItem(null);
 
     try {
@@ -522,6 +583,7 @@ export default function KnowledgeGraphSearchPage() {
     const nextQuery = node.primary_id || node.name;
     setQuery(nextQuery);
     setEntityType(node.entity_type === "entity" ? "all" : node.entity_type);
+    setSuggestions([]);
     setActiveTab("table");
     setSelectedGraphItem(null);
     setStatus("loading");
@@ -538,17 +600,23 @@ export default function KnowledgeGraphSearchPage() {
     }
   };
 
+  const handleSuggestionSelect = (item) => {
+    setQuery(item.primary_id || item.name);
+    setEntityType(item.entity_type === "entity" ? "all" : item.entity_type);
+    setSuggestions([]);
+  };
+
   return (
     <div className="page-stack">
-      <section className="hero-banner medical-hero compact">
+      <section className="hero-banner medical-hero compact compact-kg-hero">
         <div>
           <p className="eyebrow">Knowledge Graph Search</p>
           <h1>Search local drug and disease relationships</h1>
-          <p>Look up a drug or disease by name or ID, review one relationship per row, and optionally visualize only the filtered 1-hop local subgraph.</p>
+          <p>Look up a drug or disease by name or ID, review one relationship per row, and optionally visualize the filtered local graph.</p>
         </div>
       </section>
 
-      <SectionCard title="Search" subtitle="Enter a drug or disease name or identifier to fetch a local 1-hop neighborhood.">
+      <SectionCard title="Search" subtitle="Enter a drug or disease name or identifier to fetch local graph relationships.">
         <SearchControls
           query={query}
           setQuery={setQuery}
@@ -556,6 +624,9 @@ export default function KnowledgeGraphSearchPage() {
           setEntityType={setEntityType}
           onSubmit={handleSearch}
           loading={status === "loading"}
+          suggestions={suggestions}
+          searchingSuggestions={searchingSuggestions}
+          onSelectSuggestion={handleSuggestionSelect}
         />
         {error ? <div className="error-banner">{error}</div> : null}
         {status === "done" && result && !result.selected_node ? (
@@ -566,7 +637,7 @@ export default function KnowledgeGraphSearchPage() {
       {result?.selected_node ? (
         <SectionCard
           title="Results"
-          subtitle={`Showing 1-hop relationships for ${result.selected_node.name} (${getNodeSubtitle(result.selected_node) || result.selected_node.primary_id}).`}
+          subtitle={`Showing relationships for ${result.selected_node.name} (${getNodeSubtitle(result.selected_node) || result.selected_node.primary_id}).`}
           actions={<TabBar activeTab={activeTab} setActiveTab={setActiveTab} />}
         >
           <div className="selection-banner kg-result-summary">
