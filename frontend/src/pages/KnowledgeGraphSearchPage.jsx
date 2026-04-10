@@ -37,6 +37,10 @@ function normalizeSearchType(value) {
   return value === "all" ? "all entities" : value;
 }
 
+function supportsEvidenceMetrics(selectedNode) {
+  return selectedNode?.entity_type !== "disease";
+}
+
 function formatSuggestionMeta(item) {
   const ids = Object.entries(item.ids || {})
     .map(([key, value]) => `${key}: ${value}`)
@@ -182,6 +186,7 @@ function ResultToolbar({
   graphTopN,
   setGraphTopN,
   activeTab,
+  showEvidenceMetrics,
 }) {
   return (
     <div className="kg-toolbar">
@@ -194,17 +199,21 @@ function ResultToolbar({
           ))}
         </select>
       </label>
-      <label>
-        PRR threshold
-        <input value={prrThreshold} onChange={(event) => setPrrThreshold(event.target.value)} inputMode="decimal" placeholder="No minimum" />
-      </label>
-      <label>
-        Frequency threshold
-        <input value={frequencyThreshold} onChange={(event) => setFrequencyThreshold(event.target.value)} inputMode="decimal" placeholder="No minimum" />
-      </label>
+      {showEvidenceMetrics ? (
+        <label>
+          PRR threshold
+          <input value={prrThreshold} onChange={(event) => setPrrThreshold(event.target.value)} inputMode="decimal" placeholder="No minimum" />
+        </label>
+      ) : null}
+      {showEvidenceMetrics ? (
+        <label>
+          Frequency threshold
+          <input value={frequencyThreshold} onChange={(event) => setFrequencyThreshold(event.target.value)} inputMode="decimal" placeholder="No minimum" />
+        </label>
+      ) : null}
       <label>
         Keyword filter
-        <input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="Condition, node, or relationship" />
+        <input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder={showEvidenceMetrics ? "Condition, node, or relationship" : "Node or relationship"} />
       </label>
       {activeTab === "graph" ? (
         <label>
@@ -228,8 +237,8 @@ function ResultToolbar({
       <label>
         Sort by
         <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
-          <option value="prr">PRR</option>
-          <option value="frequency">Frequency</option>
+          {showEvidenceMetrics ? <option value="prr">PRR</option> : null}
+          {showEvidenceMetrics ? <option value="frequency">Frequency</option> : null}
           <option value="name">Name</option>
         </select>
       </label>
@@ -275,6 +284,7 @@ function GraphPanel({
   setSelectedGraphItem,
   onNodeSearch,
 }) {
+  const showEvidenceMetrics = supportsEvidenceMetrics(selectedNode);
   const visibleRelationships = graphTopN === "all" ? relationships : relationships.slice(0, graphTopN);
   const nodeIds = new Set([selectedNode.neo4j_id, ...visibleRelationships.map((item) => item.neighbor.neo4j_id)]);
   const nodeCount = nodeIds.size;
@@ -382,22 +392,24 @@ function GraphPanel({
             <h3>{selectedGraphItem.item.relationship_type}</h3>
             <p>{selectedGraphItem.item.source.name} to {selectedGraphItem.item.target.name}</p>
             <div className="kg-side-kv">
-              {selectedGraphItem.item.prr != null ? (
+              {showEvidenceMetrics && selectedGraphItem.item.prr != null ? (
                 <div>
                   <span>PRR</span>
                   <strong>{formatMetric(selectedGraphItem.item.prr)}</strong>
                 </div>
               ) : null}
-              {selectedGraphItem.item.frequency != null ? (
+              {showEvidenceMetrics && selectedGraphItem.item.frequency != null ? (
                 <div>
                   <span>Frequency</span>
                   <strong>{formatMetric(selectedGraphItem.item.frequency)}</strong>
                 </div>
               ) : null}
-              <div>
-                <span>Condition</span>
-                <strong>{selectedGraphItem.item.condition_name || "N/A"}</strong>
-              </div>
+              {showEvidenceMetrics ? (
+                <div>
+                  <span>Condition</span>
+                  <strong>{selectedGraphItem.item.condition_name || "N/A"}</strong>
+                </div>
+              ) : null}
             </div>
             <div className="kg-property-block">
               <strong>Raw edge properties</strong>
@@ -416,7 +428,7 @@ function GraphPanel({
   );
 }
 
-function TablePanel({ relationships }) {
+function TablePanel({ relationships, showEvidenceMetrics }) {
   if (!relationships.length) {
     return <div className="empty-state">No relationship rows match the current filters.</div>;
   }
@@ -429,9 +441,9 @@ function TablePanel({ relationships }) {
             <th>Neighbor</th>
             <th>Neighbor ID</th>
             <th>Relationship</th>
-            <th>Condition</th>
-            <th>PRR</th>
-            <th>Frequency</th>
+            {showEvidenceMetrics ? <th>Condition</th> : null}
+            {showEvidenceMetrics ? <th>PRR</th> : null}
+            {showEvidenceMetrics ? <th>Frequency</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -440,9 +452,9 @@ function TablePanel({ relationships }) {
               <td>{item.neighbor.name}</td>
               <td>{item.neighbor.primary_id}</td>
               <td>{item.relationship_type}</td>
-              <td>{item.condition_name || "N/A"}</td>
-              <td>{formatMetric(item.prr)}</td>
-              <td>{formatMetric(item.frequency)}</td>
+              {showEvidenceMetrics ? <td>{item.condition_name || "N/A"}</td> : null}
+              {showEvidenceMetrics ? <td>{formatMetric(item.prr)}</td> : null}
+              {showEvidenceMetrics ? <td>{formatMetric(item.frequency)}</td> : null}
             </tr>
           ))}
         </tbody>
@@ -475,6 +487,7 @@ export default function KnowledgeGraphSearchPage() {
   const [sortBy, setSortBy] = useState("prr");
   const [sortDirection, setSortDirection] = useState("desc");
   const [selectedGraphItem, setSelectedGraphItem] = useState(null);
+  const showEvidenceMetrics = supportsEvidenceMetrics(result?.selected_node);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -519,7 +532,7 @@ export default function KnowledgeGraphSearchPage() {
       setPrrThreshold("");
       setFrequencyThreshold("");
       setKeyword("");
-      setSortBy("prr");
+      setSortBy(supportsEvidenceMetrics(data?.selected_node) ? "prr" : "name");
       setSortDirection("desc");
       setGraphTopN(10);
       setTableTopN(50);
@@ -592,6 +605,9 @@ export default function KnowledgeGraphSearchPage() {
     try {
       const data = await api.searchKnowledgeGraph(nextQuery, node.entity_type === "entity" ? "all" : node.entity_type);
       setResult(data);
+      setSortBy(supportsEvidenceMetrics(data?.selected_node) ? "prr" : "name");
+      setPrrThreshold("");
+      setFrequencyThreshold("");
       setStatus("done");
     } catch (loadError) {
       setError(loadError.message || "Search failed.");
@@ -665,6 +681,7 @@ export default function KnowledgeGraphSearchPage() {
             graphTopN={graphTopN}
             setGraphTopN={setGraphTopN}
             activeTab={activeTab}
+            showEvidenceMetrics={showEvidenceMetrics}
           />
 
           {activeTab === "graph" ? (
@@ -677,7 +694,7 @@ export default function KnowledgeGraphSearchPage() {
               onNodeSearch={handleNodeSearch}
             />
           ) : null}
-          {activeTab === "table" ? <TablePanel relationships={tableRelationships} /> : null}
+          {activeTab === "table" ? <TablePanel relationships={tableRelationships} showEvidenceMetrics={showEvidenceMetrics} /> : null}
           {activeTab === "raw" ? <RawPanel payload={rawPayload} /> : null}
         </SectionCard>
       ) : null}
