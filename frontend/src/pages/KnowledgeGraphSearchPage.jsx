@@ -121,14 +121,16 @@ function SearchControls({
   suggestions,
   searchingSuggestions,
   onSelectSuggestion,
+  hasResult,
 }) {
   const showSuggestions = query.trim() && (searchingSuggestions || suggestions.length > 0);
 
   return (
-    <form className="kg-search-form" onSubmit={onSubmit}>
-      <label className="full-width autocomplete-field">
-        Search by drug or disease name or ID
+    <form className={`kg-search-form ${hasResult ? "kg-search-form-inline" : "kg-search-form-hero"}`} onSubmit={onSubmit}>
+      <label className="full-width autocomplete-field kg-search-input-field">
+        <span className="kg-search-label">Search by drug or disease name or ID</span>
         <input
+          className="kg-search-input"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Try metformin, 860975, diabetes, or 44054006"
@@ -150,8 +152,8 @@ function SearchControls({
           </div>
         ) : null}
       </label>
-      <label>
-        Search scope
+      <label className="kg-search-scope">
+        <span className="kg-search-label">Search scope</span>
         <select value={entityType} onChange={(event) => setEntityType(event.target.value)}>
           <option value="all">Drug or disease</option>
           <option value="drug">Drug only</option>
@@ -159,7 +161,7 @@ function SearchControls({
         </select>
       </label>
       <div className="kg-search-actions">
-        <button type="submit" className="primary-button" disabled={loading || !query.trim()}>
+        <button type="submit" className="primary-button kg-search-submit" disabled={loading || !query.trim()}>
           {loading ? "Searching..." : "Search Knowledge Graph"}
         </button>
       </div>
@@ -624,31 +626,30 @@ export default function KnowledgeGraphSearchPage() {
 
   return (
     <div className="page-stack">
-      <section className="hero-banner medical-hero compact compact-kg-hero">
-        <div>
+      <section className={`kg-search-shell ${result?.selected_node ? "with-results" : ""}`}>
+        <div className="kg-search-hero-copy">
           <p className="eyebrow">Knowledge Graph Search</p>
-          <h1>Search local drug and disease relationships</h1>
-          <p>Look up a drug or disease by name or ID, review one relationship per row, and optionally visualize the filtered local graph.</p>
+        </div>
+
+        <div className="kg-search-surface">
+          <SearchControls
+            query={query}
+            setQuery={setQuery}
+            entityType={entityType}
+            setEntityType={setEntityType}
+            onSubmit={handleSearch}
+            loading={status === "loading"}
+            suggestions={suggestions}
+            searchingSuggestions={searchingSuggestions}
+            onSelectSuggestion={handleSuggestionSelect}
+            hasResult={Boolean(result?.selected_node)}
+          />
+          {error ? <div className="error-banner">{error}</div> : null}
+          {status === "done" && result && !result.selected_node ? (
+            <div className="empty-state kg-search-empty">No {normalizeSearchType(entityType)} matched "{result.query}".</div>
+          ) : null}
         </div>
       </section>
-
-      <SectionCard title="Search" subtitle="Enter a drug or disease name or identifier to fetch local graph relationships.">
-        <SearchControls
-          query={query}
-          setQuery={setQuery}
-          entityType={entityType}
-          setEntityType={setEntityType}
-          onSubmit={handleSearch}
-          loading={status === "loading"}
-          suggestions={suggestions}
-          searchingSuggestions={searchingSuggestions}
-          onSelectSuggestion={handleSuggestionSelect}
-        />
-        {error ? <div className="error-banner">{error}</div> : null}
-        {status === "done" && result && !result.selected_node ? (
-          <div className="empty-state">No {normalizeSearchType(entityType)} matched "{result.query}".</div>
-        ) : null}
-      </SectionCard>
 
       {result?.selected_node ? (
         <SectionCard
