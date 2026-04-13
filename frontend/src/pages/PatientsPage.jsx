@@ -5,6 +5,7 @@ import { api } from "../lib/api";
 
 const PAGE_SIZE = 20;
 const PATIENT_LIST_STATE_KEY = "patient-list-state";
+const PATIENT_LIST_CACHE_KEY = "patient-list-cache-v1";
 
 function readPatientListState() {
   try {
@@ -27,11 +28,31 @@ function writePatientListState(nextState) {
   sessionStorage.setItem(PATIENT_LIST_STATE_KEY, JSON.stringify(nextState));
 }
 
+function readPatientListCache() {
+  try {
+    const raw = sessionStorage.getItem(PATIENT_LIST_CACHE_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePatientListCache(patients) {
+  sessionStorage.setItem(PATIENT_LIST_CACHE_KEY, JSON.stringify(patients));
+}
+
 const initialListState = readPatientListState();
+const initialPatients = readPatientListCache();
 
 export default function PatientsPage() {
-  const [patients, setPatients] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [patients, setPatients] = useState(initialPatients);
+  const [loading, setLoading] = useState(initialPatients.length === 0);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [page, setPage] = useState(initialListState.page);
   const [focusPatientId, setFocusPatientId] = useState(initialListState.focusPatientId);
@@ -40,30 +61,58 @@ export default function PatientsPage() {
   const scrollModeRef = useRef("");
 
   useEffect(() => {
+    let isMounted = true;
+
+    const applyPatientList = (data) => {
+      if (!isMounted) {
+        return;
+      }
+
+      setPatients(data);
+      writePatientListCache(data);
+
+      if (focusPatientId) {
+        const focusIndex = data.findIndex((patient) => patient.id === focusPatientId);
+        if (focusIndex >= 0) {
+          const targetPage = Math.floor(focusIndex / PAGE_SIZE) + 1;
+          setPage(targetPage);
+          setHighlightPatientId(focusPatientId);
+          writePatientListState({ page: targetPage, focusPatientId });
+          scrollModeRef.current = "focus-patient";
+          return;
+        }
+      }
+
+      const maxPage = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
+      const nextPage = Math.min(page, maxPage);
+      setPage(nextPage);
+      writePatientListState({ page: nextPage, focusPatientId: "" });
+    };
+
+    setRefreshing(initialPatients.length > 0);
     api
       .getPatients()
       .then((data) => {
-        setPatients(data);
-
-        if (focusPatientId) {
-          const focusIndex = data.findIndex((patient) => patient.id === focusPatientId);
-          if (focusIndex >= 0) {
-            const targetPage = Math.floor(focusIndex / PAGE_SIZE) + 1;
-            setPage(targetPage);
-            setHighlightPatientId(focusPatientId);
-            writePatientListState({ page: targetPage, focusPatientId });
-            scrollModeRef.current = "focus-patient";
-            return;
-          }
-        }
-
-        const maxPage = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
-        const nextPage = Math.min(page, maxPage);
-        setPage(nextPage);
-        writePatientListState({ page: nextPage, focusPatientId: "" });
+        applyPatientList(data);
+        setError("");
       })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!isMounted) {
+          return;
+        }
+        setError(err.message);
+      })
+      .finally(() => {
+        if (!isMounted) {
+          return;
+        }
+        setLoading(false);
+        setRefreshing(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const totalPages = Math.max(1, Math.ceil(patients.length / PAGE_SIZE));
@@ -140,7 +189,7 @@ export default function PatientsPage() {
 
   return (
     <div className="page-stack">
-      <section className="hero-banner compact">
+      <section className="hero-banner compact patient-list-hero">
         <div>
           <p className="eyebrow">Patient Registry</p>
           <h1>FHIR Patient List</h1>
@@ -150,6 +199,7 @@ export default function PatientsPage() {
 
       <SectionCard title="Patients" subtitle="Basic demographics loaded from FHIR Patient resources">
         {loading ? <div className="empty-state">Loading patients...</div> : null}
+        {!loading && refreshing ? <div className="empty-state">Refreshing patient list...</div> : null}
         {error ? <div className="error-banner">{error}</div> : null}
         {!loading && !error ? (
           <div className="section-content-stack">
