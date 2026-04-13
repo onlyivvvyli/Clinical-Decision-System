@@ -9,6 +9,8 @@ export default function AppShell({ children }) {
     isSafetyDrawerOpen,
     openSafetyDrawer,
     closeSafetyDrawer,
+    toast,
+    clearToast,
   } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -48,7 +50,17 @@ export default function AppShell({ children }) {
         </div>
       </aside>
 
-      <main className="content">{children}</main>
+      <main className="content">
+        {toast?.message ? (
+          <div className={`global-toast ${toast.tone || "success"}`} role="status" aria-live="polite">
+            <span>{toast.message}</span>
+            <button type="button" className="global-toast-close" onClick={clearToast} aria-label="Dismiss notification">
+              x
+            </button>
+          </div>
+        ) : null}
+        {children}
+      </main>
 
       <button type="button" className="safety-drawer-trigger" onClick={openSafetyDrawer}>
         Safety Settings

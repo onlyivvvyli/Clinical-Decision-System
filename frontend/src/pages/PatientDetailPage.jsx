@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import AlertPanel from "../components/AlertPanel";
 import PrescribeForm from "../components/PrescribeForm";
 import SectionCard from "../components/SectionCard";
@@ -7,9 +7,28 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 
 const SUMMARY_REFRESH_DELAYS_MS = [0, 500, 1200, 2200];
+const PATIENT_LIST_STATE_KEY = "patient-list-state";
 
 function wait(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+
+function persistPatientListReturnState(patientId) {
+  try {
+    const raw = sessionStorage.getItem(PATIENT_LIST_STATE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    const page = Number.isFinite(Number(parsed?.page)) && Number(parsed.page) > 0 ? Number(parsed.page) : 1;
+    sessionStorage.setItem(PATIENT_LIST_STATE_KEY, JSON.stringify({
+      page,
+      focusPatientId: String(patientId || ""),
+    }));
+  } catch {
+    sessionStorage.setItem(PATIENT_LIST_STATE_KEY, JSON.stringify({
+      page: 1,
+      focusPatientId: String(patientId || ""),
+    }));
+  }
 }
 
 function DataList({ items, columns, emptyMessage, pageSize = 4 }) {
@@ -118,7 +137,8 @@ function summarizeReviewCard(result) {
 export default function PatientDetailPage() {
   const { id } = useParams();
   const location = useLocation();
-  const { doctor } = useAuth();
+  const navigate = useNavigate();
+  const { doctor, showToast } = useAuth();
   const previewPatient = location.state?.patient || null;
   const [summary, setSummary] = useState(null);
   const [result, setResult] = useState(null);
@@ -126,7 +146,6 @@ export default function PatientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [workflowMessage, setWorkflowMessage] = useState("");
   const [showPrescribeModal, setShowPrescribeModal] = useState(false);
   const [showCheckPrompt, setShowCheckPrompt] = useState(false);
   const [showCheckDetails, setShowCheckDetails] = useState(false);
@@ -223,12 +242,21 @@ export default function PatientDetailPage() {
     setSummary(null);
     setResult(null);
     setPendingPayload(null);
-    setWorkflowMessage("");
     setShowPrescribeModal(false);
     setShowCheckPrompt(false);
     setShowCheckDetails(false);
     loadSummary();
   }, [id]);
+
+
+  const handleBackToPatientList = () => {
+    persistPatientListReturnState(id);
+    navigate("/patients", {
+      state: {
+        focusPatientId: id,
+      },
+    });
+  };
 
   const toggleSection = (key, nextValue) => {
     setExpandedSections((current) => ({
@@ -242,7 +270,6 @@ export default function PatientDetailPage() {
     setShowCheckPrompt(true);
     setShowCheckDetails(false);
     setShowPrescribeModal(false);
-    setWorkflowMessage("");
     setResult(null);
   };
 
@@ -257,7 +284,6 @@ export default function PatientDetailPage() {
 
     setBusy(true);
     setError("");
-    setWorkflowMessage("");
 
     if (shouldBypassReview(payload)) {
       setShowPrescribeModal(false);
@@ -265,7 +291,7 @@ export default function PatientDetailPage() {
         const data = await api.submitPrescription(payload);
         setPendingPayload(null);
         setResult(null);
-        setWorkflowMessage(data.message || "Prescription submitted.");
+        showToast(data.message || "Prescription submitted.");
         await syncSummaryAfterPrescription(data, payload);
       } catch (err) {
         setError(err.message);
@@ -297,7 +323,7 @@ export default function PatientDetailPage() {
     setError("");
     try {
       const data = await api.submitPrescription(pendingPayload);
-      setWorkflowMessage(data.message || "Prescription submitted.");
+      showToast(data.message || "Prescription submitted.");
       setResult(null);
       setPendingPayload(null);
       setShowCheckPrompt(false);
@@ -322,7 +348,7 @@ export default function PatientDetailPage() {
     setError("");
     setShowCheckPrompt(false);
     setShowCheckDetails(false);
-    setWorkflowMessage("Prescription review was dismissed without changing the current medication list.");
+    showToast("Prescription review was dismissed without changing the current medication list.", { tone: "info" });
   };
 
   const patientHeader = summary?.patient || previewPatient || {
@@ -344,6 +370,11 @@ export default function PatientDetailPage() {
     <div className="page-stack">
       <section className="hero-banner patient-hero compact">
         <div>
+          <div className="patient-hero-actions-row">
+            <button type="button" className="inline-link patient-list-return" onClick={handleBackToPatientList}>
+              Back to Patient List
+            </button>
+          </div>
           <p className="eyebrow">Patient Detail</p>
           <h1>{patientHeader.name}</h1>
           <p>
@@ -362,7 +393,6 @@ export default function PatientDetailPage() {
         </div>
       </section>
 
-      {workflowMessage ? <div className="result-banner approved">{workflowMessage}</div> : null}
       {error && !summary ? <div className="error-banner">{error}</div> : null}
       {error && summary ? <div className="error-banner">{error}</div> : null}
 

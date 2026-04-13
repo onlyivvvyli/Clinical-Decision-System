@@ -14,6 +14,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState("");
   const [safetySettings, setSafetySettings] = useState(defaultSafetySettings);
   const [isSafetyDrawerOpen, setIsSafetyDrawerOpen] = useState(false);
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -32,6 +33,32 @@ export function AuthProvider({ children }) {
       });
     }
   }, []);
+
+  useEffect(() => {
+    if (!toast?.message) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setToast(null);
+    }, toast.durationMs || 3200);
+
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  const showToast = (message, options = {}) => {
+    if (!message) {
+      return;
+    }
+
+    setToast({
+      message,
+      tone: options.tone || "success",
+      durationMs: options.durationMs || 3200,
+    });
+  };
+
+  const clearToast = () => setToast(null);
 
   const login = (payload) => {
     setDoctor(payload.doctor);
@@ -78,6 +105,9 @@ export function AuthProvider({ children }) {
         openSafetyDrawer,
         closeSafetyDrawer,
         toggleSafetyDrawer,
+        toast,
+        showToast,
+        clearToast,
       }}
     >
       {children}

@@ -1093,16 +1093,66 @@ input, select {
   .modal-card, .check-modal-card { width: 100%; padding: 18px; border-radius: 8px; }
 }
 .kg-search-shell {
-  min-height: 46vh;
+  position: relative;
+  overflow: hidden;
   display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: 22px;
-  padding: 36px 24px 18px;
+  align-items: center;
+  min-height: clamp(560px, 78vh, 820px);
+  padding: 0 24px;
+  border-radius: 24px;
+  isolation: isolate;
 }
 
 .kg-search-shell.with-results {
   min-height: auto;
+  padding: 0;
+}
+
+.kg-search-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top center, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 45%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.18) 0%, rgba(242, 245, 248, 0.14) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.kg-search-particles,
+.kg-search-particles > canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.kg-search-particles {
+  pointer-events: none;
+  z-index: 1;
+  opacity: 1;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(125, 164, 192, 0.12), rgba(125, 164, 192, 0) 42%);
+}
+
+.kg-search-particles > canvas {
+  filter: saturate(1.18) contrast(1.06);
+}
+
+.kg-search-shell-content {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: 100%;
+  min-height: inherit;
+  place-content: center;
+  justify-items: center;
+  gap: 22px;
+  padding: 36px 0;
+}
+
+.kg-search-shell.with-results .kg-search-shell-content {
+  min-height: 0;
   align-content: start;
   justify-items: stretch;
   padding: 0;
@@ -1110,6 +1160,7 @@ input, select {
 
 .kg-search-hero-copy {
   width: min(960px, 100%);
+  margin-inline: auto;
   display: grid;
   justify-items: center;
   gap: 10px;
@@ -1130,6 +1181,7 @@ input, select {
 
 .kg-search-surface {
   width: min(980px, 100%);
+  margin-inline: auto;
   display: grid;
   gap: 14px;
 }
@@ -1637,6 +1689,14 @@ input, select {
   .kg-search-shell {
     min-height: auto;
     padding: 12px 0 0;
+    border-radius: 18px;
+    align-items: start;
+  }
+
+  .kg-search-shell-content {
+    min-height: 0;
+    gap: 16px;
+    padding: 0;
   }
 
   .kg-search-hero-copy {
@@ -1807,3 +1867,4 @@ input, select {
     padding-top: 12px;
   }
 }
+
