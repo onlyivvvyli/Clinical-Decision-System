@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { api } from "../lib/api";
 
@@ -123,12 +123,13 @@ function SearchControls({
   showNoSuggestions,
   onSelectSuggestion,
   hasResult,
+  searchFieldRef,
 }) {
   const showSuggestions = query.trim() && (searchingSuggestions || showNoSuggestions || suggestions.length > 0);
 
   return (
     <form className={`kg-search-form ${hasResult ? "kg-search-form-inline" : "kg-search-form-hero"}`} onSubmit={onSubmit}>
-      <label className="full-width autocomplete-field kg-search-input-field">
+      <label ref={searchFieldRef} className="full-width autocomplete-field kg-search-input-field">
         <span className="kg-search-label">Search by drug or disease name or ID</span>
         <input
           className="kg-search-input"
@@ -492,6 +493,7 @@ export default function KnowledgeGraphSearchPage() {
   const [sortBy, setSortBy] = useState("prr");
   const [sortDirection, setSortDirection] = useState("desc");
   const [selectedGraphItem, setSelectedGraphItem] = useState(null);
+  const searchFieldRef = useRef(null);
   const showEvidenceMetrics = supportsEvidenceMetrics(result?.selected_node);
 
   useEffect(() => {
@@ -521,6 +523,25 @@ export default function KnowledgeGraphSearchPage() {
 
     return () => clearTimeout(timer);
   }, [query, entityType]);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    const isOpen = trimmed && (searchingSuggestions || showNoSuggestions || suggestions.length > 0);
+    if (!isOpen) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event) => {
+      if (!searchFieldRef.current?.contains(event.target)) {
+        setSuggestions([]);
+        setSearchingSuggestions(false);
+        setShowNoSuggestions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [query, suggestions.length, searchingSuggestions, showNoSuggestions]);
 
   const handleSearch = async (event) => {
     event.preventDefault();
@@ -658,6 +679,7 @@ export default function KnowledgeGraphSearchPage() {
             showNoSuggestions={showNoSuggestions}
             onSelectSuggestion={handleSuggestionSelect}
             hasResult={Boolean(result?.selected_node)}
+            searchFieldRef={searchFieldRef}
           />
           {error ? <div className="error-banner">{error}</div> : null}
           {status === "done" && result && !result.selected_node ? (

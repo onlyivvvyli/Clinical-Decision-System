@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 
@@ -14,6 +14,7 @@ export default function PrescribeForm({ patientId, doctorId, onSubmit, busy, ini
   const [query, setQuery] = useState(initialValues?.scdName || "");
   const [suggestions, setSuggestions] = useState([]);
   const [searching, setSearching] = useState(false);
+  const autocompleteRef = useRef(null);
 
 
   useEffect(() => {
@@ -48,6 +49,21 @@ export default function PrescribeForm({ patientId, doctorId, onSubmit, busy, ini
     return () => clearTimeout(timer);
   }, [query]);
 
+  useEffect(() => {
+    if (!query.trim() || (!suggestions.length && !searching)) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event) => {
+      if (!autocompleteRef.current?.contains(event.target)) {
+        setSuggestions([]);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [query, suggestions.length, searching]);
+
   const updateField = (event) => {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
@@ -80,7 +96,7 @@ export default function PrescribeForm({ patientId, doctorId, onSubmit, busy, ini
   return (
     <form className="prescribe-form compact-prescribe-form" onSubmit={(event) => event.preventDefault()}>
       <div className="form-grid compact-form-grid">
-        <label className="full-width autocomplete-field">
+        <label ref={autocompleteRef} className="full-width autocomplete-field">
           Search SCD Name
           <input
             value={query}
