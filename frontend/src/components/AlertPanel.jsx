@@ -319,6 +319,22 @@ function buildDrugDiseaseSupportingData(item) {
   ];
 }
 
+function renderDrugDiseaseHeroLine(drugName, conditionName, relationType) {
+  if (relationType === "contraindicated_for") {
+    return (
+      <>
+        <strong>{drugName}</strong> conflicts with this patient's active condition: <strong>{conditionName}</strong>.
+      </>
+    );
+  }
+
+  return (
+    <>
+      <strong>{drugName}</strong> has an off-label use relationship with this patient's active condition: <strong>{conditionName}</strong>.
+    </>
+  );
+}
+
 function GraphEvidenceCard({ alert, evidenceItems }) {
   const prescribingDrug =
     alert.new_drug_scd_name || alert.candidate_drug?.scd_name || alert.candidate_drug?.name || alert.new_drug_name;
@@ -539,7 +555,7 @@ function DdiRiskCard({ alert, index }) {
   );
 }
 
-function DrugDiseaseAlertCard({ item }) {
+function DrugDiseaseAlertCard({ item, index, totalItems = 1 }) {
   const relationType = item?.relation_type || (item?.type === "CONTRAINDICATION" ? "contraindicated_for" : "off_label_use_for");
   const themeClass = relationType === "contraindicated_for" ? "contraindication" : "off-label";
   const bannerTitle = item?.banner_title || (relationType === "contraindicated_for" ? "Potential contraindication" : "Potential off-label use");
@@ -552,29 +568,33 @@ function DrugDiseaseAlertCard({ item }) {
   );
   const explanation = item?.explanation || item?.message || "No explanation returned for this drug-condition relationship.";
   const supportingData = buildDrugDiseaseSupportingData(item);
+  const heroLine = renderDrugDiseaseHeroLine(prescribedDrugName, conditionName, relationType);
 
   return (
     <article className={`risk-item-card drug-disease-alert-card ${themeClass}`}>
-      <section className={`drug-disease-banner ${themeClass}`}>
-        <h3>{bannerTitle}</h3>
-        <p>{bannerMessage}</p>
-      </section>
+      <div className="drug-disease-card-topline">
+        <div className={`drug-disease-pill ${themeClass}`}>{bannerTitle}</div>
+        {totalItems > 1 ? <span className="drug-disease-card-counter">{index + 1} / {totalItems}</span> : null}
+      </div>
 
-      <section className="drug-disease-detail-section why-flagged-section">
+      <p className="drug-disease-hero-line">{heroLine}</p>
+
+      <section className="why-flagged-section drug-disease-inline-section">
         <h3>Why this was flagged</h3>
-        <p className="drug-disease-backend-line">{bannerMessage}</p>
-        <p className="drug-disease-ai-line">{explanation}</p>
+        <p className="drug-disease-body-copy">
+          <span className="drug-disease-ai-line">{explanation}</span>
+        </p>
         <small className="drug-disease-ai-note">
           {item?.ai_disclaimer || "AI-generated explanation. Please use clinical judgment."}
         </small>
       </section>
 
-      <section className="drug-disease-detail-section supporting-data-section">
-        <h3>Supporting data</h3>
-        <div className="drug-disease-support-grid">
-          {supportingData.map((entry, index) => (
-            <div key={`${entry.label}-${index}`} className="drug-disease-support-item">
-              <span>{entry.label}</span>
+      <section className="supporting-data-section drug-disease-inline-section">
+        <div className="drug-disease-divider" aria-hidden="true"></div>
+        <div className="drug-disease-inline-supporting">
+          {supportingData.map((entry, supportIndex) => (
+            <div key={`${entry.label}-${supportIndex}`} className="drug-disease-inline-item">
+              <span>{entry.label}:</span>
               <strong>{entry.value}</strong>
             </div>
           ))}
@@ -697,7 +717,7 @@ export default function AlertPanel({ result }) {
           subtitle="Each drug-condition relationship is shown as its own alert card."
           items={drugDiseaseItems}
           emptyMessage={drugDiseaseEmptyMessage}
-          renderItem={(item, index) => <DrugDiseaseAlertCard key={item.key || `${item.relation_type || item.type}-${index}`} item={item} />}
+          renderItem={(item, index) => <DrugDiseaseAlertCard key={item.key || `${item.relation_type || item.type}-${index}`} item={item} index={index} totalItems={drugDiseaseItems.length} />}
         />
       </div>
     </div>
