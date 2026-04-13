@@ -120,10 +120,11 @@ function SearchControls({
   loading,
   suggestions,
   searchingSuggestions,
+  showNoSuggestions,
   onSelectSuggestion,
   hasResult,
 }) {
-  const showSuggestions = query.trim() && (searchingSuggestions || suggestions.length > 0);
+  const showSuggestions = query.trim() && (searchingSuggestions || showNoSuggestions || suggestions.length > 0);
 
   return (
     <form className={`kg-search-form ${hasResult ? "kg-search-form-inline" : "kg-search-form-hero"}`} onSubmit={onSubmit}>
@@ -138,6 +139,7 @@ function SearchControls({
         {showSuggestions ? (
           <div className="autocomplete-list kg-autocomplete-list">
             {searchingSuggestions ? <div className="autocomplete-item muted-item">Searching...</div> : null}
+            {!searchingSuggestions && showNoSuggestions ? <div className="autocomplete-item muted-item">No results found.</div> : null}
             {suggestions.map((item) => (
               <button
                 key={`${item.entity_type}-${item.neo4j_id}`}
@@ -476,6 +478,7 @@ export default function KnowledgeGraphSearchPage() {
   const [entityType, setEntityType] = useState("all");
   const [suggestions, setSuggestions] = useState([]);
   const [searchingSuggestions, setSearchingSuggestions] = useState(false);
+  const [showNoSuggestions, setShowNoSuggestions] = useState(false);
   const [activeTab, setActiveTab] = useState("table");
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -496,16 +499,21 @@ export default function KnowledgeGraphSearchPage() {
     if (!trimmed) {
       setSuggestions([]);
       setSearchingSuggestions(false);
+      setShowNoSuggestions(false);
       return undefined;
     }
 
     const timer = setTimeout(async () => {
       setSearchingSuggestions(true);
+      setShowNoSuggestions(false);
       try {
         const data = await api.searchKnowledgeGraphSuggestions(trimmed, entityType);
-        setSuggestions(Array.isArray(data) ? data : []);
+        const nextSuggestions = Array.isArray(data) ? data : [];
+        setSuggestions(nextSuggestions);
+        setShowNoSuggestions(nextSuggestions.length === 0);
       } catch {
         setSuggestions([]);
+        setShowNoSuggestions(true);
       } finally {
         setSearchingSuggestions(false);
       }
@@ -524,6 +532,8 @@ export default function KnowledgeGraphSearchPage() {
     setStatus("loading");
     setError("");
     setSuggestions([]);
+    setSearchingSuggestions(false);
+    setShowNoSuggestions(false);
     setSelectedGraphItem(null);
 
     try {
@@ -599,6 +609,8 @@ export default function KnowledgeGraphSearchPage() {
     setQuery(nextQuery);
     setEntityType(node.entity_type === "entity" ? "all" : node.entity_type);
     setSuggestions([]);
+    setSearchingSuggestions(false);
+    setShowNoSuggestions(false);
     setActiveTab("table");
     setSelectedGraphItem(null);
     setStatus("loading");
@@ -622,6 +634,8 @@ export default function KnowledgeGraphSearchPage() {
     setQuery(item.primary_id || item.name);
     setEntityType(item.entity_type === "entity" ? "all" : item.entity_type);
     setSuggestions([]);
+    setSearchingSuggestions(false);
+    setShowNoSuggestions(false);
   };
 
   return (
@@ -641,6 +655,7 @@ export default function KnowledgeGraphSearchPage() {
             loading={status === "loading"}
             suggestions={suggestions}
             searchingSuggestions={searchingSuggestions}
+            showNoSuggestions={showNoSuggestions}
             onSelectSuggestion={handleSuggestionSelect}
             hasResult={Boolean(result?.selected_node)}
           />
