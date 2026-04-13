@@ -76,6 +76,37 @@ class OpenAIService:
 
         return "\n".join(lines).strip()
 
+    @classmethod
+    def render_drug_disease_alert_text(cls, payload: dict) -> str:
+        prescribed_drug_name = payload.get("prescribed_drug_name") or "The prescribed drug"
+        mapped_drug_name = payload.get("mapped_drug_name") or prescribed_drug_name
+        condition_name = payload.get("condition_name") or "the active condition"
+        relation_type = str(payload.get("relation_type") or "").strip().casefold()
+        evidence_strength = payload.get("evidence_strength") or "rule-based evidence"
+
+        if relation_type == "contraindicated_for":
+            if mapped_drug_name != prescribed_drug_name:
+                return (
+                    f"This order was flagged because {mapped_drug_name}, an ingredient in {prescribed_drug_name}, "
+                    f"is marked as contraindicated for {condition_name}. "
+                    f"This relationship was identified from {evidence_strength.lower()}."
+                )
+            return (
+                f"This order was flagged because {prescribed_drug_name} is marked as contraindicated for {condition_name}. "
+                f"This relationship was identified from {evidence_strength.lower()}."
+            )
+
+        if mapped_drug_name != prescribed_drug_name:
+            return (
+                f"This order was flagged because {mapped_drug_name}, an ingredient in {prescribed_drug_name}, "
+                f"has an off-label use relationship with {condition_name}. "
+                f"Review whether the intended use fits the current clinical context."
+            )
+        return (
+            f"This order was flagged because {prescribed_drug_name} has an off-label use relationship with {condition_name}. "
+            f"Review whether the intended use fits the current clinical context."
+        )
+
     async def generate_ddi_alert_text(self, payload: dict) -> str:
         fallback_text = self.render_ddi_alert_text(payload)
         if not self.enabled:
@@ -143,6 +174,69 @@ class OpenAIService:
             "instructions": instructions,
             "input": "\n".join(input_lines),
             "max_output_tokens": 220,
+        }
+
+        headers = {
+            "Authorization": f"Bearer {self.settings.openai_api_key}",
+            "Content-Type": "application/json",
+        }
+        url = f"{self.settings.openai_base_url.rstrip('/')}/responses"
+
+        try:
+            client = self._get_client(self.settings.openai_timeout_seconds)
+            response = await client.post(url, headers=headers, json=request_body)
+            response.raise_for_status()
+            generated_text = self._extract_output_text(response.json())
+        except httpx.HTTPError:
+            return fallback_text
+
+        return generated_text or fallback_text
+
+    async def generate_drug_disease_alert_text(self, payload: dict) -> str:
+        fallback_text = self.render_drug_disease_alert_text(payload)
+        if not self.enabled:
+            return fallback_text
+
+        prescribed_drug_name = payload.get("prescribed_drug_name")
+        mapped_drug_name = payload.get("mapped_drug_name")
+        mapped_drug_rxnorm_id = payload.get("mapped_drug_rxnorm_id")
+        condition_name = payload.get("condition_name")
+        condition_snomed_id = payload.get("condition_snomed_id")
+        relation_type = payload.get("relation_type")
+        evidence_strength = payload.get("evidence_strength") or "rule-based evidence"
+        evidence_source = payload.get("evidence_source") or "Knowledge graph condition match"
+
+        if not prescribed_drug_name or not condition_name or not relation_type:
+            return fallback_text
+
+        instructions = (
+            "You are writing a concise clinician-facing explanation for a drug-condition alert. "
+            "The risk classification has already been determined by the backend. Do not re-judge or hedge that decision. "
+            "Write 2 short sentences max in plain text. "
+            "For contraindicated_for, explain that the prescribed drug conflicts with the active condition. "
+            "For off_label_use_for, explain that the relationship reflects off-label use and should be interpreted in clinical context. "
+            "If the mapped drug differs from the prescribed drug, mention that the mapped drug is the ingredient-level match. "
+            "Do not use markdown, bullets, or citations."
+        )
+
+        relation_hint = "contraindication" if str(relation_type).casefold() == "contraindicated_for" else "off-label use"
+        input_lines = [
+            f"Prescribed drug name: {prescribed_drug_name}",
+            f"Mapped drug name: {mapped_drug_name or prescribed_drug_name}",
+            f"Mapped drug RxNorm ID: {mapped_drug_rxnorm_id or 'N/A'}",
+            f"Condition name: {condition_name}",
+            f"Condition SNOMED ID: {condition_snomed_id or 'N/A'}",
+            f"Relation type: {relation_type}",
+            f"Clinical meaning: {relation_hint}",
+            f"Evidence source: {evidence_source}",
+            f"Evidence strength: {evidence_strength}",
+        ]
+
+        request_body = {
+            "model": self.settings.openai_model,
+            "instructions": instructions,
+            "input": "\n".join(input_lines),
+            "max_output_tokens": 140,
         }
 
         headers = {

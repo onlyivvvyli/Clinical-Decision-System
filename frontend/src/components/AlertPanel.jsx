@@ -279,24 +279,44 @@ function summarizeRiskCounts(result) {
   };
 }
 
-function groupDrugDiseaseItems(items) {
-  const grouped = new Map();
-
-  (items || []).forEach((item) => {
-    const drugName = item.new_drug_name || `RxCUI ${item.new_drug_rxcui || "Unknown"}`;
-    const key = `${item.type || "Drug-Disease"}-${drugName}`;
-    if (!grouped.has(key)) {
-      grouped.set(key, {
-        key,
-        type: item.type || "Drug-Disease",
-        drugName,
-        items: [],
-      });
+function sortDrugDiseaseItems(items) {
+  return [...(items || [])].sort((left, right) => {
+    const leftPriority = Number(left?.sort_priority ?? (left?.type === "CONTRAINDICATION" ? 0 : 1));
+    const rightPriority = Number(right?.sort_priority ?? (right?.type === "CONTRAINDICATION" ? 0 : 1));
+    if (leftPriority !== rightPriority) {
+      return leftPriority - rightPriority;
     }
-    grouped.get(key).items.push(item);
-  });
 
-  return [...grouped.values()];
+    const leftCondition = String(left?.condition_name || left?.disease_name || "");
+    const rightCondition = String(right?.condition_name || right?.disease_name || "");
+    return leftCondition.localeCompare(rightCondition);
+  });
+}
+
+function buildDrugDiseaseSupportingData(item) {
+  if (Array.isArray(item?.supporting_data) && item.supporting_data.length) {
+    return item.supporting_data;
+  }
+
+  const relationValue = item?.relation_type === "contraindicated_for" ? "Contraindicated_for" : "Off_label_use_for";
+  return [
+    {
+      label: "Knowledge graph relation",
+      value: relationValue,
+    },
+    {
+      label: "Mapped drug",
+      value: `${item?.mapped_drug_name || item?.new_drug_name || "Unknown drug"} (RxCUI: ${item?.mapped_drug_rxnorm_id || item?.new_drug_rxcui || "N/A"})`,
+    },
+    {
+      label: "Mapped condition",
+      value: `${item?.condition_name || item?.disease_name || "Unknown condition"} (SNOMED: ${item?.condition_snomed_id || item?.snomed_code || "N/A"})`,
+    },
+    {
+      label: "Evidence strength",
+      value: item?.evidence_strength || "Knowledge graph reference",
+    },
+  ];
 }
 
 function GraphEvidenceCard({ alert, evidenceItems }) {
@@ -519,24 +539,46 @@ function DdiRiskCard({ alert, index }) {
   );
 }
 
-function DrugDiseaseGroupCard({ group }) {
-  return (
-    <article className="risk-item-card drug-disease-card simple-drug-disease-card">
-      <div className="drug-disease-sentence-list">
-        {group.items.map((item, index) => {
-          const drugName = item.new_drug_name || group.drugName || "This drug";
-          const diseaseName = item.disease_name || "the current disease";
-          const relationText = item.type === "CONTRAINDICATION"
-            ? "is contraindicated for"
-            : "is off-label use for";
+function DrugDiseaseAlertCard({ item }) {
+  const relationType = item?.relation_type || (item?.type === "CONTRAINDICATION" ? "contraindicated_for" : "off_label_use_for");
+  const themeClass = relationType === "contraindicated_for" ? "contraindication" : "off-label";
+  const bannerTitle = item?.banner_title || (relationType === "contraindicated_for" ? "Potential contraindication" : "Potential off-label use");
+  const prescribedDrugName = item?.prescribed_drug_name || item?.new_drug_name || "This medication";
+  const conditionName = item?.condition_name || item?.disease_name || "the active condition";
+  const bannerMessage = item?.banner_message || (
+    relationType === "contraindicated_for"
+      ? `${prescribedDrugName} conflicts with this patient's active condition: ${conditionName}.`
+      : `${prescribedDrugName} has an off-label use relationship with this patient's active condition: ${conditionName}.`
+  );
+  const explanation = item?.explanation || item?.message || "No explanation returned for this drug-condition relationship.";
+  const supportingData = buildDrugDiseaseSupportingData(item);
 
-          return (
-            <p key={`${group.key}-${item.disease_id || index}`} className="drug-disease-sentence">
-              <strong>{drugName}</strong> {relationText} <strong>{diseaseName}</strong>.
-            </p>
-          );
-        })}
-      </div>
+  return (
+    <article className={`risk-item-card drug-disease-alert-card ${themeClass}`}>
+      <section className={`drug-disease-banner ${themeClass}`}>
+        <h3>{bannerTitle}</h3>
+        <p>{bannerMessage}</p>
+      </section>
+
+      <section className="drug-disease-detail-section why-flagged-section">
+        <h3>Why this was flagged</h3>
+        <p>{explanation}</p>
+        <small className="drug-disease-ai-note">
+          {item?.ai_disclaimer || "AI-generated explanation. Please use clinical judgment."}
+        </small>
+      </section>
+
+      <section className="drug-disease-detail-section supporting-data-section">
+        <h3>Supporting data</h3>
+        <div className="drug-disease-support-grid">
+          {supportingData.map((entry, index) => (
+            <div key={`${entry.label}-${index}`} className="drug-disease-support-item">
+              <span>{entry.label}</span>
+              <strong>{entry.value}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
     </article>
   );
 }
@@ -583,17 +625,20 @@ function RiskSection({ title, subtitle, items, emptyMessage, renderItem }) {
             <button type="button" className="risk-carousel-arrow right" onClick={showNext} aria-label={`Next ${title} item`}>
               {'>'}
             </button>
-            <div className="risk-carousel-dots" role="tablist" aria-label={`${title} pages`}>
-              {items.map((item, index) => (
-                <button
-                  key={`${item.key || title}-dot-${index}`}
-                  type="button"
-                  className={index === activeIndex ? "risk-carousel-dot active" : "risk-carousel-dot"}
-                  onClick={() => setActiveIndex(index)}
-                  aria-label={`${title} item ${index + 1}`}
-                  aria-pressed={index === activeIndex}
-                />
-              ))}
+            <div className="risk-carousel-meta">
+              <span className="risk-carousel-counter">{activeIndex + 1} / {items.length}</span>
+              <div className="risk-carousel-dots" role="tablist" aria-label={`${title} pages`}>
+                {items.map((item, index) => (
+                  <button
+                    key={`${item.key || title}-dot-${index}`}
+                    type="button"
+                    className={index === activeIndex ? "risk-carousel-dot active" : "risk-carousel-dot"}
+                    onClick={() => setActiveIndex(index)}
+                    aria-label={`${title} item ${index + 1}`}
+                    aria-pressed={index === activeIndex}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         ) : (
@@ -617,7 +662,7 @@ export default function AlertPanel({ result }) {
   const drugDiseaseRules = result?.appliedRules?.drug_disease;
   const ddiItems = result?.ddi_alerts || [];
   const drugDiseaseItems = useMemo(
-    () => groupDrugDiseaseItems([...(result?.drug_disease_alerts || []), ...(result?.drug_disease_references || [])]),
+    () => sortDrugDiseaseItems([...(result?.drug_disease_alerts || []), ...(result?.drug_disease_references || [])]),
     [result],
   );
   const totals = summarizeRiskCounts(result);
@@ -648,10 +693,10 @@ export default function AlertPanel({ result }) {
 
         <RiskSection
           title="Drug-Disease Findings"
-          subtitle="Disease-related findings are grouped by drug and expanded by active disease."
+          subtitle="Each drug-condition relationship is shown as its own alert card."
           items={drugDiseaseItems}
           emptyMessage={drugDiseaseEmptyMessage}
-          renderItem={(item) => <DrugDiseaseGroupCard key={item.key} group={item} />}
+          renderItem={(item, index) => <DrugDiseaseAlertCard key={item.key || `${item.relation_type || item.type}-${index}`} item={item} />}
         />
       </div>
     </div>

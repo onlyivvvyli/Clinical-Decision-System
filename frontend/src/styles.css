@@ -1568,3 +1568,142 @@ input, select {
     width: 100%;
   }
 }
+
+
+.risk-carousel-meta {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.risk-carousel-counter {
+  color: #5d7485;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.drug-disease-alert-card {
+  display: grid;
+  gap: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.drug-disease-alert-card.contraindication {
+  --drug-disease-accent: #bf1d1d;
+  --drug-disease-border: #f4bcbc;
+  --drug-disease-tint: #fff5f5;
+}
+
+.drug-disease-alert-card.off-label {
+  --drug-disease-accent: #b66100;
+  --drug-disease-border: #f2d4a8;
+  --drug-disease-tint: #fff8ee;
+}
+
+.drug-disease-banner,
+.drug-disease-detail-section {
+  border: 1px solid #dbe5ef;
+  border-radius: 28px;
+  background: #fff;
+  box-shadow: 0 18px 38px rgba(18, 41, 57, 0.08);
+}
+
+.drug-disease-banner {
+  padding: 26px 34px;
+}
+
+.drug-disease-banner.contraindication,
+.drug-disease-banner.off-label {
+  border-color: var(--drug-disease-border);
+  background: linear-gradient(180deg, var(--drug-disease-tint) 0%, #fff 100%);
+}
+
+.drug-disease-banner h3 {
+  margin: 0 0 14px;
+  color: var(--drug-disease-accent);
+  font-size: clamp(1.4rem, 2.2vw, 2rem);
+  line-height: 1.15;
+}
+
+.drug-disease-banner p {
+  margin: 0;
+  color: #203041;
+  font-size: clamp(1.2rem, 2vw, 1.5rem);
+  line-height: 1.5;
+}
+
+.drug-disease-detail-section {
+  padding: 28px 34px;
+}
+
+.drug-disease-detail-section h3 {
+  margin: 0 0 18px;
+  color: #12263a;
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
+.why-flagged-section p {
+  margin: 0;
+  color: #213547;
+  font-size: 1.06rem;
+  line-height: 1.9;
+}
+
+.drug-disease-ai-note {
+  display: block;
+  margin-top: 14px;
+  color: #7a8d9d;
+  font-size: 0.82rem;
+}
+
+.drug-disease-support-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.drug-disease-support-item {
+  display: grid;
+  gap: 8px;
+  min-height: 120px;
+  padding: 22px 24px;
+  border: 1px solid #d9e3ee;
+  border-radius: 24px;
+  background: #fff;
+}
+
+.drug-disease-support-item span {
+  color: #7a8d9d;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.drug-disease-support-item strong {
+  color: #162535;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  .drug-disease-banner,
+  .drug-disease-detail-section {
+    border-radius: 22px;
+  }
+
+  .drug-disease-banner,
+  .drug-disease-detail-section {
+    padding: 22px 20px;
+  }
+
+  .drug-disease-support-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .drug-disease-support-item {
+    min-height: auto;
+  }
+}

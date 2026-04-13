@@ -123,6 +123,97 @@ class AlertEngine:
             },
         }
 
+    @staticmethod
+    def _format_relation_chip(relation_type: str) -> str:
+        if relation_type == "contraindicated_for":
+            return "Contraindicated_for"
+        return "Off_label_use_for"
+
+    @staticmethod
+    def _build_drug_disease_banner(selected_scd_name: str, condition_name: str, relation_type: str) -> tuple[str, str]:
+        if relation_type == "contraindicated_for":
+            return (
+                "Potential contraindication",
+                f"{selected_scd_name} conflicts with this patient's active condition: {condition_name}.",
+            )
+        return (
+            "Potential off-label use",
+            f"{selected_scd_name} has an off-label use relationship with this patient's active condition: {condition_name}.",
+        )
+
+    async def _build_drug_disease_alert(
+        self,
+        *,
+        relation_kind: str,
+        selected_scd_name: str,
+        ingredient_rxcui: str,
+        ingredient_name: str,
+        disease_match: dict,
+    ) -> dict:
+        relation_type = "contraindicated_for" if relation_kind == "CONTRAINDICATION" else "off_label_use_for"
+        condition_name = disease_match.get("disease_name") or "Unknown condition"
+        condition_snomed_id = disease_match.get("snomed_code") or ""
+        mapped_drug_rxnorm_id = self._safe_int(ingredient_rxcui)
+        banner_title, banner_message = self._build_drug_disease_banner(selected_scd_name, condition_name, relation_type)
+        evidence_strength = (
+            "Rule-based clinical restriction" if relation_type == "contraindicated_for" else "Knowledge graph reference"
+        )
+        evidence_source = "Knowledge graph active-condition match"
+        prompt_payload = {
+            "prescribed_drug_name": selected_scd_name,
+            "mapped_drug_name": ingredient_name,
+            "mapped_drug_rxnorm_id": mapped_drug_rxnorm_id,
+            "condition_name": condition_name,
+            "condition_snomed_id": condition_snomed_id,
+            "relation_type": relation_type,
+            "evidence_source": evidence_source,
+            "evidence_strength": evidence_strength,
+        }
+        explanation = await self.openai_service.generate_drug_disease_alert_text(prompt_payload)
+
+        return {
+            "key": f"{relation_type}-{ingredient_rxcui}-{disease_match.get('disease_id') or condition_snomed_id or condition_name}",
+            "type": relation_kind,
+            "relation_type": relation_type,
+            "sort_priority": 0 if relation_type == "contraindicated_for" else 1,
+            "prescribed_drug_name": selected_scd_name,
+            "new_drug_rxcui": mapped_drug_rxnorm_id,
+            "new_drug_name": selected_scd_name,
+            "mapped_drug_name": ingredient_name,
+            "mapped_drug_rxnorm_id": mapped_drug_rxnorm_id,
+            "disease_id": disease_match.get("disease_id"),
+            "disease_name": condition_name,
+            "condition_name": condition_name,
+            "snomed_code": condition_snomed_id,
+            "condition_snomed_id": condition_snomed_id,
+            "banner_title": banner_title,
+            "banner_message": banner_message,
+            "explanation": explanation,
+            "ai_disclaimer": "AI-generated explanation. Please use clinical judgment.",
+            "evidence_source": evidence_source,
+            "evidence_strength": evidence_strength,
+            "knowledge_graph_relation": self._format_relation_chip(relation_type),
+            "supporting_data": [
+                {
+                    "label": "Knowledge graph relation",
+                    "value": self._format_relation_chip(relation_type),
+                },
+                {
+                    "label": "Mapped drug",
+                    "value": f"{ingredient_name} (RxCUI: {mapped_drug_rxnorm_id or 'N/A'})",
+                },
+                {
+                    "label": "Mapped condition",
+                    "value": f"{condition_name} (SNOMED: {condition_snomed_id or 'N/A'})",
+                },
+                {
+                    "label": "Evidence strength",
+                    "value": evidence_strength,
+                },
+            ],
+            "message": banner_message,
+        }
+
     async def run_medication_check(self, patient_id: str, new_medication: PrescriptionCheckRequest):
         selected_scd, resolved_ingredients = self.mapping_service.resolve_scd_to_ingredients(new_medication.scd_rxcui)
         if not selected_scd:
@@ -240,15 +331,13 @@ class AlertEngine:
                     if contra_key in seen_contra:
                         continue
                     seen_contra.add(contra_key)
-                    contra_alert = {
-                        "type": "CONTRAINDICATION",
-                        "new_drug_rxcui": int(ingredient_rxcui),
-                        "new_drug_name": ingredient_name,
-                        "disease_id": item.get("disease_id"),
-                        "disease_name": item.get("disease_name"),
-                        "snomed_code": item.get("snomed_code"),
-                        "message": "This drug is contraindicated for a patient condition.",
-                    }
+                    contra_alert = await self._build_drug_disease_alert(
+                        relation_kind="CONTRAINDICATION",
+                        selected_scd_name=selected_scd_name,
+                        ingredient_rxcui=ingredient_rxcui,
+                        ingredient_name=ingredient_name,
+                        disease_match=item,
+                    )
                     drug_disease_alerts.append(contra_alert)
                     alerts.append(contra_alert)
 
@@ -257,15 +346,13 @@ class AlertEngine:
                     if offlabel_key in seen_offlabel:
                         continue
                     seen_offlabel.add(offlabel_key)
-                    reference = {
-                        "type": "OFF_LABEL_USE",
-                        "new_drug_rxcui": int(ingredient_rxcui),
-                        "new_drug_name": ingredient_name,
-                        "disease_id": item.get("disease_id"),
-                        "disease_name": item.get("disease_name"),
-                        "snomed_code": item.get("snomed_code"),
-                        "message": "This drug is off-label for a patient condition.",
-                    }
+                    reference = await self._build_drug_disease_alert(
+                        relation_kind="OFF_LABEL_USE",
+                        selected_scd_name=selected_scd_name,
+                        ingredient_rxcui=ingredient_rxcui,
+                        ingredient_name=ingredient_name,
+                        disease_match=item,
+                    )
                     drug_disease_references.append(reference)
                     alerts.append(reference)
 
