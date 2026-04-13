@@ -6,6 +6,29 @@ function formatStrictness(value) {
   return String(value || "unknown").replaceAll("_", " ");
 }
 
+function getDdiStrictnessDescription(value) {
+  if (value === "high_signal") {
+    return "High signal uses PRR >= 50.";
+  }
+  if (value === "standard") {
+    return "Standard uses PRR >= 20.";
+  }
+  if (value === "strict") {
+    return "Strict checks all KG DDI relations.";
+  }
+  return "Off skips DDI.";
+}
+
+function getDrugDiseaseStrictnessDescription(value) {
+  if (value === "contraindication_only") {
+    return "Only contraindication skips off-label.";
+  }
+  if (value === "full") {
+    return "Full runs both contraindication and off-label.";
+  }
+  return "Off skips all drug-disease checks.";
+}
+
 export default function ClinicalSafetySettingsPage() {
   const {
     safetySettings,
@@ -59,7 +82,7 @@ export default function ClinicalSafetySettingsPage() {
               <option value="standard">Standard</option>
               <option value="strict">Strict</option>
             </select>
-            <small className="muted">Off skips DDI. High signal uses PRR &gt;= 50. Standard uses PRR &gt;= 20. Strict checks all KG DDI relations.</small>
+            <small className="muted">{getDdiStrictnessDescription(draftSettings.ddiStrictness)}</small>
           </label>
 
           <label>
@@ -69,14 +92,15 @@ export default function ClinicalSafetySettingsPage() {
               <option value="contraindication_only">Only contraindication</option>
               <option value="full">Full check</option>
             </select>
-            <small className="muted">Off skips all drug-disease checks. Only contraindication skips off-label. Full runs both contraindication and off-label.</small>
+            <small className="muted">{getDrugDiseaseStrictnessDescription(draftSettings.drugDiseaseStrictness)}</small>
           </label>
         </div>
 
         <div className="selection-banner applied-rules-banner">
-          <span>Draft Configuration</span>
           <strong>DDI: {formatStrictness(draftSettings.ddiStrictness)}</strong>
-          <small>Drug-disease: {formatStrictness(draftSettings.drugDiseaseStrictness)}</small>
+          <small>{getDdiStrictnessDescription(draftSettings.ddiStrictness)}</small>
+          <strong>Drug-disease: {formatStrictness(draftSettings.drugDiseaseStrictness)}</strong>
+          <small>{getDrugDiseaseStrictnessDescription(draftSettings.drugDiseaseStrictness)}</small>
         </div>
 
         <div className="settings-note-card">
