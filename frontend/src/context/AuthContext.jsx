@@ -13,6 +13,7 @@ export function AuthProvider({ children }) {
   const [doctor, setDoctor] = useState(null);
   const [token, setToken] = useState("");
   const [safetySettings, setSafetySettings] = useState(defaultSafetySettings);
+  const [isSafetyDrawerOpen, setIsSafetyDrawerOpen] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -58,6 +59,10 @@ export function AuthProvider({ children }) {
     localStorage.setItem(SAFETY_SETTINGS_KEY, JSON.stringify(defaultSafetySettings));
   };
 
+  const openSafetyDrawer = () => setIsSafetyDrawerOpen(true);
+  const closeSafetyDrawer = () => setIsSafetyDrawerOpen(false);
+  const toggleSafetyDrawer = () => setIsSafetyDrawerOpen((current) => !current);
+
   return (
     <AuthContext.Provider
       value={{
@@ -69,6 +74,10 @@ export function AuthProvider({ children }) {
         updateSafetySettings,
         resetSafetySettings,
         defaultSafetySettings,
+        isSafetyDrawerOpen,
+        openSafetyDrawer,
+        closeSafetyDrawer,
+        toggleSafetyDrawer,
       }}
     >
       {children}

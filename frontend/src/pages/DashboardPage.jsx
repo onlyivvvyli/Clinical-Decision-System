@@ -26,7 +26,7 @@ function readCachedPatientCount() {
 }
 
 export default function DashboardPage() {
-  const { doctor, safetySettings } = useAuth();
+  const { doctor, safetySettings, openSafetyDrawer } = useAuth();
   const [patientCount, setPatientCount] = useState(() => readCachedPatientCount());
   const [alerts, setAlerts] = useState([]);
 
@@ -44,9 +44,9 @@ export default function DashboardPage() {
           <p>Monitor prescribing activity, review recent alerts, and enter the patient workflow.</p>
         </div>
         <div className="dashboard-hero-actions">
-          <Link className="ghost-button" to="/settings">
+          <button type="button" className="ghost-button" onClick={openSafetyDrawer}>
             Clinical Safety Settings
-          </Link>
+          </button>
           <Link className="primary-button" to="/patients">
             Enter Patient List
           </Link>
@@ -63,9 +63,9 @@ export default function DashboardPage() {
         title="Clinical Safety Settings Snapshot"
         subtitle="Current defaults that will automatically apply to all subsequent risk checks and prescription submissions"
         actions={
-          <Link className="inline-link" to="/settings">
-            Open Settings Dashboard
-          </Link>
+          <button type="button" className="inline-link" onClick={openSafetyDrawer}>
+            Open Safety Drawer
+          </button>
         }
       >
         <div className="kv-grid settings-kv-grid">
