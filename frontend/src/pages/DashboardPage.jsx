@@ -9,13 +9,29 @@ function formatStrictness(value) {
   return String(value || "unknown").replaceAll("_", " ");
 }
 
+const PATIENT_LIST_CACHE_KEY = "patient-list-cache-v1";
+
+function readCachedPatientCount() {
+  try {
+    const raw = sessionStorage.getItem(PATIENT_LIST_CACHE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.length : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function DashboardPage() {
   const { doctor, safetySettings } = useAuth();
-  const [patients, setPatients] = useState([]);
+  const [patientCount, setPatientCount] = useState(() => readCachedPatientCount());
   const [alerts, setAlerts] = useState([]);
 
   useEffect(() => {
-    api.getPatients().then(setPatients).catch(() => setPatients([]));
+    api.getPatients().then((data) => setPatientCount(data.length)).catch(() => setPatientCount((current) => current ?? null));
     api.getAlerts().then(setAlerts).catch(() => setAlerts([]));
   }, []);
 
@@ -38,7 +54,7 @@ export default function DashboardPage() {
       </section>
 
       <div className="summary-grid">
-        <SummaryCard label="Patients" value={patients.length} hint="Available from FHIR Patient resources" />
+        <SummaryCard label="Patients" value={patientCount ?? "..."} hint="Available from FHIR Patient resources" />
         <SummaryCard label="Recent Alerts" value={alerts.length} hint="Last 20 prescription log records" />
         <SummaryCard label="DDI Default" value={formatStrictness(safetySettings.ddiStrictness)} hint="Auto-applied to all later prescription checks" />
       </div>
