@@ -29,13 +29,6 @@ export default function AppShell({ children }) {
           <Link className={location.pathname.startsWith("/dashboard") ? "active" : ""} to="/dashboard">
             Dashboard
           </Link>
-          <button
-            type="button"
-            className={`sidebar-nav-button ${isSafetyDrawerOpen ? "active" : ""}`}
-            onClick={openSafetyDrawer}
-          >
-            Clinical Safety Settings
-          </button>
           <Link className={location.pathname.startsWith("/patients") ? "active" : ""} to="/patients">
             Patients
           </Link>
