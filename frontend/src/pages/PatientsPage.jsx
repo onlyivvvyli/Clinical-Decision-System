@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import SectionCard from "../components/SectionCard";
 import { api } from "../lib/api";
 
@@ -50,6 +50,7 @@ const initialListState = readPatientListState();
 const initialPatients = readPatientListCache();
 
 export default function PatientsPage() {
+  const location = useLocation();
   const [patients, setPatients] = useState(initialPatients);
   const [loading, setLoading] = useState(initialPatients.length === 0);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,6 +60,21 @@ export default function PatientsPage() {
   const [highlightPatientId, setHighlightPatientId] = useState("");
   const linkRefs = useRef(new Map());
   const scrollModeRef = useRef("");
+  const navigationFocusPatientId = typeof location.state?.focusPatientId === "string" ? location.state.focusPatientId : "";
+  const focusPatientIdRef = useRef(navigationFocusPatientId || initialListState.focusPatientId);
+
+
+  useEffect(() => {
+    if (!navigationFocusPatientId) {
+      return;
+    }
+
+    focusPatientIdRef.current = navigationFocusPatientId;
+    setFocusPatientId(navigationFocusPatientId);
+    setHighlightPatientId(navigationFocusPatientId);
+    writePatientListState({ page, focusPatientId: navigationFocusPatientId });
+    scrollModeRef.current = "focus-patient";
+  }, [navigationFocusPatientId, page]);
 
   useEffect(() => {
     let isMounted = true;
@@ -71,13 +87,14 @@ export default function PatientsPage() {
       setPatients(data);
       writePatientListCache(data);
 
-      if (focusPatientId) {
-        const focusIndex = data.findIndex((patient) => patient.id === focusPatientId);
+      const requestedFocusPatientId = focusPatientIdRef.current || focusPatientId;
+      if (requestedFocusPatientId) {
+        const focusIndex = data.findIndex((patient) => patient.id === requestedFocusPatientId);
         if (focusIndex >= 0) {
           const targetPage = Math.floor(focusIndex / PAGE_SIZE) + 1;
           setPage(targetPage);
-          setHighlightPatientId(focusPatientId);
-          writePatientListState({ page: targetPage, focusPatientId });
+          setHighlightPatientId(requestedFocusPatientId);
+          writePatientListState({ page: targetPage, focusPatientId: requestedFocusPatientId });
           scrollModeRef.current = "focus-patient";
           return;
         }
@@ -138,7 +155,7 @@ export default function PatientsPage() {
     }
 
     const targetId = scrollModeRef.current === "focus-patient"
-      ? focusPatientId
+      ? (focusPatientIdRef.current || focusPatientId)
       : visiblePatients[0]?.id;
     const targetLink = targetId ? linkRefs.current.get(targetId) : null;
     if (!targetLink) {
@@ -149,6 +166,7 @@ export default function PatientsPage() {
       targetLink.scrollIntoView({ block: "start", behavior: "auto" });
       if (scrollModeRef.current === "focus-patient") {
         targetLink.focus({ preventScroll: true });
+        focusPatientIdRef.current = "";
         setFocusPatientId("");
         writePatientListState({ page, focusPatientId: "" });
       }
@@ -175,6 +193,7 @@ export default function PatientsPage() {
   };
 
   const handlePageChange = (nextPage) => {
+    focusPatientIdRef.current = "";
     setFocusPatientId("");
     setHighlightPatientId("");
     setPage(nextPage);
@@ -183,6 +202,7 @@ export default function PatientsPage() {
   };
 
   const handlePatientOpen = (patientId) => {
+    focusPatientIdRef.current = patientId;
     setFocusPatientId(patientId);
     writePatientListState({ page, focusPatientId: patientId });
   };
