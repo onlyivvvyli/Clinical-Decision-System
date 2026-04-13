@@ -562,7 +562,8 @@ function DrugDiseaseAlertCard({ item }) {
 
       <section className="drug-disease-detail-section why-flagged-section">
         <h3>Why this was flagged</h3>
-        <p>{explanation}</p>
+        <p className="drug-disease-backend-line">{bannerMessage}</p>
+        <p className="drug-disease-ai-line">{explanation}</p>
         <small className="drug-disease-ai-note">
           {item?.ai_disclaimer || "AI-generated explanation. Please use clinical judgment."}
         </small>

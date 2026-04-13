@@ -163,6 +163,7 @@ class AlertEngine:
             "prescribed_drug_name": selected_scd_name,
             "mapped_drug_name": ingredient_name,
             "mapped_drug_rxnorm_id": mapped_drug_rxnorm_id,
+            "ingredients": ingredient_name,
             "condition_name": condition_name,
             "condition_snomed_id": condition_snomed_id,
             "relation_type": relation_type,

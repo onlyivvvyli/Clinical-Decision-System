@@ -1653,6 +1653,14 @@ input, select {
   line-height: 1.9;
 }
 
+.drug-disease-backend-line {
+  font-weight: 600;
+}
+
+.drug-disease-ai-line {
+  margin-top: 10px;
+}
+
 .drug-disease-ai-note {
   display: block;
   margin-top: 14px;
