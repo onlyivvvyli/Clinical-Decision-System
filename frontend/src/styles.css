@@ -215,6 +215,66 @@ input, select {
   color: var(--text);
   box-shadow: none;
 }
+
+.global-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 420px;
+  max-width: min(760px, calc(100vw - 32px));
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid #cce6db;
+  background: rgba(237, 248, 244, 0.98);
+  color: var(--success);
+  box-shadow: 0 14px 30px rgba(18, 41, 57, 0.16);
+  backdrop-filter: blur(8px);
+}
+
+.global-toast.info {
+  border-color: #cfe1ec;
+  background: rgba(244, 249, 252, 0.98);
+  color: #2b5f86;
+}
+
+.global-toast.error {
+  border-color: #f2d2cf;
+  background: rgba(253, 240, 239, 0.98);
+  color: var(--danger);
+}
+
+.global-toast span {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.global-toast-close {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+@media (max-width: 760px) {
+  .global-toast {
+    top: 14px;
+    min-width: 0;
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    padding: 10px 12px;
+  }
+}
+
 .error-banner, .result-banner {
   border-radius: 6px;
   padding: 13px 14px;
@@ -672,6 +732,14 @@ input, select {
   background: #eef7ff;
   animation: patient-row-flash 2.2s ease-out;
 }
+
+.patient-row-highlight {
+  position: relative;
+}
+
+.patient-row-highlight td:first-child {
+  box-shadow: inset 4px 0 0 #2b6f9c;
+}
 .workflow-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .workflow-step {
   display: flex;
@@ -826,6 +894,16 @@ input, select {
   color: var(--text);
 }
 
+.patient-hero-actions-row {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 12px;
+}
+
+.patient-list-return {
+  font-weight: 700;
+}
+
 .patient-hero p:last-child { max-width: 760px; }
 .workflow-strip { display: grid; gap: 10px; }
 .workflow-line-item {
@@ -902,12 +980,23 @@ input, select {
 @keyframes patient-row-flash {
   0% {
     background: #dceeff;
+    transform: scale(1);
+    box-shadow: inset 0 0 0 999px rgba(220, 238, 255, 0.88);
+  }
+  22% {
+    background: #cfe7ff;
+    transform: scale(1.01);
+    box-shadow: inset 0 0 0 999px rgba(207, 231, 255, 0.96);
   }
   55% {
     background: #eef7ff;
+    transform: scale(1.003);
+    box-shadow: inset 0 0 0 999px rgba(238, 247, 255, 0.92);
   }
   100% {
     background: transparent;
+    transform: scale(1);
+    box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0);
   }
 }
 
