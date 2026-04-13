@@ -1571,147 +1571,150 @@ input, select {
 
 
 .risk-carousel-meta {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-}
-
-.risk-carousel-counter {
-  color: #5d7485;
-  font-size: 0.92rem;
-  font-weight: 700;
+  display: none;
 }
 
 .drug-disease-alert-card {
   display: grid;
   gap: 18px;
-  padding: 0;
-  border: none;
-  background: transparent;
+  padding: 24px 22px 18px;
+  border: 1px solid #d7e1eb;
+  border-radius: 26px;
+  background: #fff;
   box-shadow: none;
 }
 
 .drug-disease-alert-card.contraindication {
-  --drug-disease-accent: #bf1d1d;
-  --drug-disease-border: #f4bcbc;
-  --drug-disease-tint: #fff5f5;
+  --drug-disease-accent: #cc133f;
+  --drug-disease-pill-bg: #fff0f3;
 }
 
 .drug-disease-alert-card.off-label {
   --drug-disease-accent: #b66100;
-  --drug-disease-border: #f2d4a8;
-  --drug-disease-tint: #fff8ee;
+  --drug-disease-pill-bg: #fff5e8;
 }
 
-.drug-disease-banner,
-.drug-disease-detail-section {
-  border: 1px solid #dbe5ef;
-  border-radius: 28px;
-  background: #fff;
-  box-shadow: 0 18px 38px rgba(18, 41, 57, 0.08);
+.drug-disease-card-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.drug-disease-banner {
-  padding: 26px 34px;
-}
-
-.drug-disease-banner.contraindication,
-.drug-disease-banner.off-label {
-  border-color: var(--drug-disease-border);
-  background: linear-gradient(180deg, var(--drug-disease-tint) 0%, #fff 100%);
-}
-
-.drug-disease-banner h3 {
-  margin: 0 0 14px;
+.drug-disease-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 52px;
+  padding: 0 20px;
+  border-radius: 999px;
+  background: var(--drug-disease-pill-bg);
   color: var(--drug-disease-accent);
-  font-size: clamp(1.4rem, 2.2vw, 2rem);
-  line-height: 1.15;
+  font-size: clamp(1rem, 1.6vw, 1.2rem);
+  line-height: 1.1;
+  font-weight: 700;
 }
 
-.drug-disease-banner p {
-  margin: 0;
-  color: #203041;
-  font-size: clamp(1.2rem, 2vw, 1.5rem);
-  line-height: 1.5;
-}
-
-.drug-disease-detail-section {
-  padding: 28px 34px;
-}
-
-.drug-disease-detail-section h3 {
-  margin: 0 0 18px;
-  color: #12263a;
-  font-size: 1.15rem;
+.drug-disease-card-counter {
+  color: #486784;
+  font-size: 0.95rem;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
-.why-flagged-section p {
+.drug-disease-hero-line {
   margin: 0;
-  color: #213547;
-  font-size: 1.06rem;
+  color: #142a42;
+  font-size: 1.02rem;
+  line-height: 1.7;
+}
+
+.drug-disease-inline-section h3 {
+  margin: 0 0 12px;
+  color: #08234a;
+  font-size: 1.02rem;
+  line-height: 1.3;
+}
+
+.why-flagged-section {
+  padding-top: 16px;
+  border-top: 1px solid #d8e1ea;
+}
+
+.drug-disease-body-copy {
+  margin: 0;
+  color: #102742;
+  font-size: clamp(1rem, 1.8vw, 1.12rem);
   line-height: 1.9;
 }
 
 .drug-disease-backend-line {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .drug-disease-ai-line {
-  margin-top: 10px;
+  font-weight: 400;
 }
 
 .drug-disease-ai-note {
   display: block;
-  margin-top: 14px;
-  color: #7a8d9d;
-  font-size: 0.82rem;
+  margin-top: 16px;
+  color: #6d86a0;
+  font-size: 0.8rem;
 }
 
-.drug-disease-support-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+.drug-disease-divider {
+  height: 1px;
+  background: #d8e1ea;
 }
 
-.drug-disease-support-item {
-  display: grid;
+.drug-disease-inline-supporting {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 28px;
+  padding-top: 14px;
+}
+
+.drug-disease-inline-item {
+  display: flex;
+  align-items: baseline;
   gap: 8px;
-  min-height: 120px;
-  padding: 22px 24px;
-  border: 1px solid #d9e3ee;
-  border-radius: 24px;
-  background: #fff;
-}
-
-.drug-disease-support-item span {
-  color: #7a8d9d;
+  color: #102742;
   font-size: 0.95rem;
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
-.drug-disease-support-item strong {
-  color: #162535;
-  font-size: 1rem;
-  line-height: 1.45;
+.drug-disease-inline-item span {
+  color: #5e7893;
+}
+
+.drug-disease-inline-item strong {
+  color: #08234a;
+  font-weight: 700;
 }
 
 @media (max-width: 760px) {
-  .drug-disease-banner,
-  .drug-disease-detail-section {
-    border-radius: 22px;
+  .drug-disease-alert-card {
+    gap: 14px;
+    padding: 18px 16px 16px;
+    border-radius: 20px;
   }
 
-  .drug-disease-banner,
-  .drug-disease-detail-section {
-    padding: 22px 20px;
+  .drug-disease-card-topline {
+    align-items: center;
   }
 
-  .drug-disease-support-grid {
-    grid-template-columns: 1fr;
+  .drug-disease-pill {
+    min-height: 44px;
+    padding: 0 16px;
   }
 
-  .drug-disease-support-item {
-    min-height: auto;
+  .drug-disease-inline-section h3 {
+    margin-bottom: 12px;
+  }
+
+  .drug-disease-inline-supporting {
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 12px;
   }
 }
