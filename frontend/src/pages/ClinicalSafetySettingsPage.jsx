@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import SectionCard from "../components/SectionCard";
-import SummaryCard from "../components/SummaryCard";
 import { useAuth } from "../context/AuthContext";
 
 function formatStrictness(value) {
@@ -10,7 +8,6 @@ function formatStrictness(value) {
 
 export default function ClinicalSafetySettingsPage() {
   const {
-    doctor,
     safetySettings,
     updateSafetySettings,
     resetSafetySettings,
@@ -47,39 +44,8 @@ export default function ClinicalSafetySettingsPage() {
     [draftSettings, safetySettings],
   );
 
-  const ddiSummary = draftSettings.ddiStrictness === "high_signal"
-    ? "Only keep DDI relations with PRR >= 50"
-    : draftSettings.ddiStrictness === "standard"
-      ? "Only keep DDI relations with PRR >= 20"
-      : draftSettings.ddiStrictness === "strict"
-        ? "Check all DDI relations from the knowledge graph"
-        : "Skip all DDI checks";
-
-  const drugDiseaseSummary = draftSettings.drugDiseaseStrictness === "contraindication_only"
-    ? "Run contraindication only"
-    : draftSettings.drugDiseaseStrictness === "full"
-      ? "Run contraindication and off-label checks"
-      : "Skip all drug-disease checks";
-
   return (
     <div className="page-stack">
-      <section className="hero-banner medical-hero">
-        <div>
-          <p className="eyebrow">Clinical Safety Settings</p>
-          <h1>Safety policy defaults for {doctor?.name}</h1>
-          <p>Configure the prescribing safety policy once here, then automatically apply it to every later risk check and prescription submission.</p>
-        </div>
-        <Link className="primary-button" to="/patients">
-          Go To Patients
-        </Link>
-      </section>
-
-      <div className="summary-grid">
-        <SummaryCard label="DDI Default" value={formatStrictness(safetySettings.ddiStrictness)} hint={ddiSummary} />
-        <SummaryCard label="Drug-Disease Default" value={formatStrictness(safetySettings.drugDiseaseStrictness)} hint={drugDiseaseSummary} />
-        <SummaryCard label="Status" value={hasPendingChanges ? "Draft Changed" : "Applied"} hint={hasPendingChanges ? "Apply to activate these edits" : "Current defaults are active"} />
-      </div>
-
       <SectionCard
         title="Clinical Safety Settings Dashboard"
         subtitle="Change the draft values below, then click Apply to make them the default for all future prescribing workflows"
