@@ -96,13 +96,6 @@ export default function ClinicalSafetySettingsPage() {
           </label>
         </div>
 
-        <div className="selection-banner applied-rules-banner">
-          <strong>DDI: {formatStrictness(draftSettings.ddiStrictness)}</strong>
-          <small>{getDdiStrictnessDescription(draftSettings.ddiStrictness)}</small>
-          <strong>Drug-disease: {formatStrictness(draftSettings.drugDiseaseStrictness)}</strong>
-          <small>{getDrugDiseaseStrictnessDescription(draftSettings.drugDiseaseStrictness)}</small>
-        </div>
-
         <div className="settings-note-card">
           <strong>{hasPendingChanges ? "You have unapplied changes." : "This configuration is currently active."}</strong>
           <span>{hasPendingChanges ? "Click Apply to use this configuration for all future prescription checks." : "All future prescription checks will use these defaults until someone changes them."}</span>
