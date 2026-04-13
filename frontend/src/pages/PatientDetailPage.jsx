@@ -143,6 +143,7 @@ export default function PatientDetailPage() {
   };
 
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     setSummary(null);
     setResult(null);
     setPendingPayload(null);
