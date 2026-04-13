@@ -69,16 +69,18 @@ export default function SafetySettingsPanel({ compact = false, onApplyComplete =
 
   return (
     <div className={`safety-settings-panel ${compact ? "compact" : ""}`}>
-      <div className="safety-settings-header">
-        <div>
-          <p className="eyebrow neutral">Clinical Safety Settings</p>
-          <h2>Set prescribing defaults</h2>
+      {compact ? null : (
+        <div className="safety-settings-header">
+          <div>
+            <p className="eyebrow neutral">Clinical Safety Settings</p>
+            <h2>Set prescribing defaults</h2>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="settings-grid safety-settings-grid">
-        <label>
-          DDI strictness
+      <div className={`settings-grid safety-settings-grid ${compact ? "compact" : ""}`}>
+        <label className="safety-settings-field">
+          <span className="safety-settings-field-title">DDI strictness</span>
           <select name="ddiStrictness" value={draftSettings.ddiStrictness} onChange={handleChange}>
             <option value="off">Off</option>
             <option value="high_signal">High signal</option>
@@ -88,8 +90,8 @@ export default function SafetySettingsPanel({ compact = false, onApplyComplete =
           <small className="muted">{getDdiStrictnessDescription(draftSettings.ddiStrictness)}</small>
         </label>
 
-        <label>
-          Drug-disease strictness
+        <label className="safety-settings-field">
+          <span className="safety-settings-field-title">Drug-disease strictness</span>
           <select name="drugDiseaseStrictness" value={draftSettings.drugDiseaseStrictness} onChange={handleChange}>
             <option value="off">Off</option>
             <option value="contraindication_only">Only contraindication</option>
@@ -99,12 +101,12 @@ export default function SafetySettingsPanel({ compact = false, onApplyComplete =
         </label>
       </div>
 
-      <div className="settings-note-card">
+      <div className={`settings-note-card ${compact ? "compact" : ""}`}>
         <strong>{hasPendingChanges ? "You have unapplied changes." : "This configuration is currently active."}</strong>
         <span>{hasPendingChanges ? "Click Apply to use this configuration for all future prescription checks." : "All future prescription checks will use these defaults until someone changes them."}</span>
       </div>
 
-      <div className="button-row settings-actions-row">
+      <div className={`button-row settings-actions-row ${compact ? "compact" : ""}`}>
         <button type="button" className="ghost-button" onClick={handleReset}>
           Reset
         </button>

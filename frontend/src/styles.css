@@ -750,7 +750,7 @@ input, select {
   top: 0;
   right: 0;
   z-index: 35;
-  width: min(480px, calc(100vw - 32px));
+  width: min(560px, calc(100vw - 32px));
   height: 100vh;
   padding: 22px;
   background: #fbfdff;
@@ -788,7 +788,7 @@ input, select {
 }
 
 .safety-settings-panel.compact {
-  gap: 14px;
+  gap: 18px;
 }
 
 .safety-settings-header {
@@ -800,11 +800,26 @@ input, select {
   margin-bottom: 0;
 }
 
+.safety-settings-grid.compact {
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
+.safety-settings-field {
+  gap: 10px;
+}
+
+.safety-settings-field-title {
+  display: block;
+}
+
 .safety-settings-current-values {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   color: var(--muted);
   font-size: 0.92rem;
+  padding-top: 4px;
+  border-top: 1px solid rgba(28, 47, 61, 0.08);
 }
 
 .safety-settings-current-values strong {
@@ -923,6 +938,14 @@ input, select {
 }
 .settings-grid small { line-height: 1.5; font-size: 0.9rem; }
 .settings-actions-row { margin-top: 16px; }
+.settings-actions-row.compact {
+  margin-top: 4px;
+  justify-content: space-between;
+}
+.settings-actions-row.compact .ghost-button,
+.settings-actions-row.compact .primary-button {
+  min-width: 120px;
+}
 .settings-kv-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .settings-note-card {
   display: grid;
@@ -932,6 +955,11 @@ input, select {
   border-radius: 6px;
   border: 1px solid rgba(43, 111, 156, 0.12);
   background: #f5f9fc;
+}
+.settings-note-card.compact {
+  margin-top: 0;
+  padding: 18px;
+  gap: 10px;
 }
 .settings-note-card strong { font-size: 0.98rem; }
 .settings-note-card span { color: var(--muted); font-size: 0.94rem; }
