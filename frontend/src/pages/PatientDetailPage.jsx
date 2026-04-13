@@ -6,6 +6,12 @@ import SectionCard from "../components/SectionCard";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 
+const SUMMARY_REFRESH_DELAYS_MS = [0, 500, 1200, 2200];
+
+function wait(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 function DataList({ items, columns, emptyMessage, pageSize = 4 }) {
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
@@ -132,14 +138,84 @@ export default function PatientDetailPage() {
   });
   const [conditionStatusFilter, setConditionStatusFilter] = useState("all");
 
-  const loadSummary = () => {
-    setLoading(true);
+  const loadSummary = async ({ showSpinner = true } = {}) => {
+    if (showSpinner) {
+      setLoading(true);
+    }
     setError("");
-    api
-      .getPatientSummary(id)
-      .then(setSummary)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+
+    try {
+      const data = await api.getPatientSummary(id);
+      setSummary(data);
+      return data;
+    } catch (err) {
+      setError(err.message);
+      return null;
+    } finally {
+      if (showSpinner) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const buildOptimisticMedication = (submitData, payload) => ({
+    id: submitData?.fhir_writeback?.resource_id || `pending-${Date.now()}`,
+    name: submitData?.selected_scd?.name || payload?.scdName || "Recently prescribed medication",
+    code: String(submitData?.selected_scd?.rxcui || payload?.scdRxcui || ""),
+    status: "active",
+    authored_on: new Date().toISOString().slice(0, 10),
+    dosage_text: [payload?.dosage, payload?.frequency].filter(Boolean).join(" | ") || "Pending sync",
+    period: null,
+  });
+
+  const syncSummaryAfterPrescription = async (submitData, payload) => {
+    const resourceId = submitData?.fhir_writeback?.resource_id;
+
+    for (const delay of SUMMARY_REFRESH_DELAYS_MS) {
+      if (delay) {
+        await wait(delay);
+      }
+
+      const refreshed = await loadSummary({ showSpinner: false });
+      const currentItems = refreshed?.current_medications || [];
+      const matchedMedication = currentItems.some((item) => (
+        (resourceId && String(item.id || "") === String(resourceId))
+        || (
+          !resourceId
+          && String(item.code || "") === String(submitData?.selected_scd?.rxcui || payload?.scdRxcui || "")
+          && String(item.status || "").toLowerCase() === "active"
+        )
+      ));
+
+      if (matchedMedication) {
+        return;
+      }
+    }
+
+    setSummary((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const optimisticMedication = buildOptimisticMedication(submitData, payload);
+      const existingItems = current.current_medications || [];
+      const alreadyListed = existingItems.some((item) => (
+        String(item.id || "") === String(optimisticMedication.id)
+        || (
+          String(item.code || "") === optimisticMedication.code
+          && String(item.status || "").toLowerCase() === "active"
+        )
+      ));
+
+      if (alreadyListed) {
+        return current;
+      }
+
+      return {
+        ...current,
+        current_medications: [optimisticMedication, ...existingItems],
+      };
+    });
   };
 
   useEffect(() => {
@@ -190,7 +266,7 @@ export default function PatientDetailPage() {
         setPendingPayload(null);
         setResult(null);
         setWorkflowMessage(data.message || "Prescription submitted.");
-        loadSummary();
+        await syncSummaryAfterPrescription(data, payload);
       } catch (err) {
         setError(err.message);
         setShowPrescribeModal(true);
@@ -226,7 +302,7 @@ export default function PatientDetailPage() {
       setPendingPayload(null);
       setShowCheckPrompt(false);
       setShowCheckDetails(false);
-      loadSummary();
+      await syncSummaryAfterPrescription(data, pendingPayload);
     } catch (err) {
       setError(err.message);
     } finally {
