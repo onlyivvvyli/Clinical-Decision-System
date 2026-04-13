@@ -162,9 +162,9 @@ export default function PatientDetailPage() {
     id: submitData?.fhir_writeback?.resource_id || `pending-${Date.now()}`,
     name: submitData?.selected_scd?.name || payload?.scdName || "Recently prescribed medication",
     code: String(submitData?.selected_scd?.rxcui || payload?.scdRxcui || ""),
-    status: "active",
+    status: "active (syncing)",
     authored_on: new Date().toISOString().slice(0, 10),
-    dosage_text: [payload?.dosage, payload?.frequency].filter(Boolean).join(" | ") || "Pending sync",
+    dosage_text: [payload?.dosage, payload?.frequency].filter(Boolean).join(" | "),
     period: null,
   });
 
