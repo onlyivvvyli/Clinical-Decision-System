@@ -1835,6 +1835,13 @@ input, select {
   margin-top: 4px;
 }
 
+.ai-summary-closing {
+  margin: 2px 0 0;
+  color: #102742;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
 .simple-drug-disease-card {
   padding: 12px 16px;
 }

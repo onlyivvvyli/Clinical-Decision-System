@@ -114,8 +114,10 @@ function parseSummaryMessage(message) {
 
   const introLines = [];
   const conditionBullets = [];
+  const closingLines = [];
   const notes = [];
   let readingConditions = false;
+  let sawBullet = false;
 
   lines.forEach((line) => {
     const normalized = line.trim();
@@ -134,19 +136,24 @@ function parseSummaryMessage(message) {
     }
 
     if (/^[-*]/.test(normalized)) {
+      sawBullet = true;
       conditionBullets.push(normalized.replace(/^[-*]\s*/, ""));
       return;
     }
 
-    if (readingConditions) {
-      conditionBullets.push(normalized);
+    if (readingConditions || sawBullet) {
+      if (conditionBullets.length) {
+        closingLines.push(normalized);
+      } else {
+        conditionBullets.push(normalized);
+      }
       return;
     }
 
     introLines.push(normalized);
   });
 
-  return { introLines, conditionBullets, notes };
+  return { introLines, conditionBullets, closingLines, notes };
 }
 
 function renderHighlightedDrugLine(line, alert) {
@@ -443,7 +450,7 @@ function DrugDiseaseEvidenceCard({ item }) {
 }
 
 function AIClinicalSummary({ alert, alertKey, hideIntro = false }) {
-  const [summary, setSummary] = useState({ introLines: [], conditionBullets: [], notes: [] });
+  const [summary, setSummary] = useState({ introLines: [], conditionBullets: [], closingLines: [], notes: [] });
   const [status, setStatus] = useState("idle");
   const promptPayload = buildSummaryPayload(alert);
 
@@ -453,7 +460,7 @@ function AIClinicalSummary({ alert, alertKey, hideIntro = false }) {
 
     async function loadSummary() {
       if (!currentPayload) {
-        setSummary({ introLines: [], conditionBullets: [], notes: [] });
+        setSummary({ introLines: [], conditionBullets: [], closingLines: [], notes: [] });
         setStatus("done");
         return;
       }
@@ -511,6 +518,9 @@ function AIClinicalSummary({ alert, alertKey, hideIntro = false }) {
             ))}
           </ul>
         ) : null}
+        {summary.closingLines.map((line, index) => (
+          <p key={`${line}-closing-${index}`} className="ai-summary-closing">{line}</p>
+        ))}
         {status === "loading" ? <small className="muted">Generating AI summary...</small> : null}
         {status !== "loading" && summary.notes.length ? (
           <div className="ai-summary-notes">

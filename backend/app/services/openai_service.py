@@ -88,71 +88,131 @@ class OpenAIService:
 
     async def generate_ddi_alert_text(self, payload: dict) -> str:
         fallback_text = self.render_ddi_alert_text(payload)
-        if not self.enabled:
-            print(f"[drug-disease-explanation] source=fallback reason=openai_disabled drug={drug_name or 'N/A'} condition={condition_name or 'N/A'} relation={relation_type or 'N/A'}")
-            return fallback_text
-
-        drug_name = payload.get("drug_name") or payload.get("trigger_ingredient") or payload.get("drug_a")
-        trigger_ingredient = payload.get("trigger_ingredient") or payload.get("drug_a")
-        current_medication = payload.get("current_medication") or payload.get("drug_b")
-        combination_ingredients = [
-            str(item).strip() for item in payload.get("combination_ingredients") or [] if str(item).strip()
-        ]
+        drug_name = str(payload.get("drug_name") or payload.get("trigger_ingredient") or payload.get("drug_a") or "").strip()
+        trigger_ingredient = str(payload.get("trigger_ingredient") or payload.get("drug_a") or "").strip()
+        current_medication = str(payload.get("current_medication") or payload.get("drug_b") or "").strip()
         top_conditions = payload.get("top_conditions") or []
-        display_lines = [item.get("display_text") for item in top_conditions if item.get("display_text")]
-        if not drug_name or not current_medication or not trigger_ingredient or not display_lines:
+
+        if not self.enabled:
+            print(f"[ddi-explanation] source=fallback reason=openai_disabled drug_a={drug_name or 'N/A'} drug_b={current_medication or 'N/A'}")
             return fallback_text
 
-        instructions = (
-            "You are writing a concise clinician-facing DDI explanation. "
-            "Follow the output template exactly. "
-            "If the newly prescribed drug is a combination drug, first list all contained ingredients in the first sentence. "
-            "Then identify which ingredient actually matched the DDI signal, and use only that ingredient in the second sentence. "
-            "Do not say the whole combination drug interacted if only one ingredient triggered the match. "
-            "If there is only one ingredient, omit the first sentence and directly state '{drug_name} and {current_medication} have reported interaction signals.' "
-            "Show only the top conditions ranked by PRR descending. "
-            "Use the provided readable PRR multiplier and frequency label exactly as given. "
-            "Keep the output factual, concise, and non-deterministic. "
-            "Return plain text only, with no markdown fence and no extra commentary."
-        )
+        if not drug_name or not current_medication or not trigger_ingredient or len(top_conditions) < 3:
+            print(f"[ddi-explanation] source=fallback reason=missing_input drug_a={drug_name or 'N/A'} drug_b={current_medication or 'N/A'} top_conditions={len(top_conditions)}")
+            return fallback_text
 
-        input_lines = [
-            f"Drug name: {drug_name}",
-            f"Combination ingredients: {', '.join(combination_ingredients) if combination_ingredients else '(single ingredient drug)'}",
-            f"Trigger ingredient: {trigger_ingredient}",
-            f"Current medication: {current_medication}",
-            "Top conditions ranked by PRR descending:",
-        ]
-        input_lines.extend(display_lines)
-        input_lines.extend(
-            [
-                "",
-                "Required template:",
-                "The drug contains {ingredient_1} and {ingredient_2}[, ...].",
-                "{trigger_ingredient} and {current_medication} have reported interaction signals.",
-                "",
-                "Top conditions include:",
-                "- {condition_1} (~{multiplier_1}x more frequently reported than expected; {frequency_label_1} overall)",
-                "- {condition_2} (~{multiplier_2}x more frequently reported than expected; {frequency_label_2} overall)",
-                "- {condition_3} (~{multiplier_3}x more frequently reported than expected; {frequency_label_3} overall)",
-                "- ...",
-                "",
-                "Rules:",
-                "1. If the newly prescribed drug is a combination drug, first list all contained ingredients in the first sentence.",
-                "2. Identify which ingredient actually matched the DDI signal, and use that ingredient in the second sentence.",
-                "3. Do not say the whole combination drug interacted if only one ingredient triggered the match.",
-                "4. Show only the top conditions ranked by PRR descending.",
-                "5. The phrase '{multiplier}x more frequently reported than expected' comes from PRR, rounded to a readable number.",
-                "6. The phrase '{frequency_label} overall' comes from mean_reporting_frequency and has already been converted into a human-readable bucket.",
-                "7. If there is only one ingredient, omit the first sentence and directly state '{drug_name} and {current_medication} have reported interaction signals.'",
-                "8. Keep the tone concise and clinician-facing.",
-            ]
+        instructions = """You are a clinical pharmacology explanation assistant for prescribing safety alerts.
+
+Your task is to generate a short "Why this was flagged" explanation for a drug-drug interaction alert.
+
+Use the provided evidence as the primary grounding source.
+
+You may use well-established pharmacologic knowledge based on the drug names and ingredients to provide lightweight mechanistic reasoning when relevant.
+
+Rules:
+1. Every bullet MUST explicitly include the quantitative signal using wording like:
+   "~80\u00D7 more frequently than expected"
+   "~7\u00D7 more frequently than expected"
+2. Do NOT mention PRR explicitly.
+3. Do NOT make definitive causal claims.
+4. Use cautious reasoning such as:
+   - may suggest
+   - may indicate
+   - possibly reflecting
+   - may be associated with
+5. Keep the output concise and clinician-friendly.
+6. Output exactly:
+   - 3 bullet points
+   - 1 short overall summary sentence
+7. The summary sentence should synthesize the overall mechanistic concern suggested by the signal pattern.
+8. Do not invent unsupported evidence beyond standard pharmacology knowledge.
+9. Do not omit the quantitative multipliers.
+10. Use one sentence per bullet."""
+
+        top_three = top_conditions[:3]
+
+        input_text = """Generate a short "Why this was flagged" explanation.
+
+Each bullet MUST explicitly include the quantitative multiplier, such as "~80\u00D7 more frequently than expected".
+
+Example 1
+
+Input:
+Drug A: Warfarin sodium
+Drug B: Aspirin oral tablet
+
+Top reported signals:
+1. Gastrointestinal haemorrhage, 7
+2. Haemorrhage, 6
+3. Anaemia, 5
+
+Output:
+- Gastrointestinal haemorrhage was reported ~7\u00D7 more frequently than expected, which may reflect increased bleeding risk when anticoagulant and antiplatelet effects overlap.
+- Haemorrhage was also reported ~6\u00D7 more frequently than expected, consistent with a broader bleeding-related signal pattern.
+- Anaemia was reported ~5\u00D7 more frequently than expected, possibly reflecting downstream consequences of clinically significant bleeding.
+Overall, the main mechanistic concern is additive bleeding risk driven by impaired coagulation and platelet function.
+
+Example 2
+
+Input:
+Drug A: Simvastatin oral tablet
+Drug B: Gemfibrozil oral tablet
+
+Top reported signals:
+1. Myopathy, 18
+2. Rhabdomyolysis, 16
+3. Muscle weakness, 11
+
+Output:
+- Myopathy was reported ~18\u00D7 more frequently than expected, which may suggest a clinically meaningful muscle toxicity signal for this combination.
+- Rhabdomyolysis was reported ~16\u00D7 more frequently than expected, possibly reflecting more severe muscle injury in susceptible patients.
+- Muscle weakness was reported ~11\u00D7 more frequently than expected, reinforcing a broader pattern of muscle-related adverse effects.
+Overall, the main mechanistic concern is increased statin-associated muscle injury.
+
+Example 3
+
+Input:
+Drug A: Prednisone oral tablet
+Drug B: Levofloxacin oral tablet
+
+Top reported signals:
+1. Tendon rupture, 12
+2. Tendinitis, 10
+3. Arthralgia, 6
+
+Output:
+- Tendon rupture was reported ~12\u00D7 more frequently than expected, which may suggest a meaningful tendon injury signal.
+- Tendinitis was reported ~10\u00D7 more frequently than expected, consistent with increased tendon-related adverse event reporting.
+- Arthralgia was reported ~6\u00D7 more frequently than expected, possibly reflecting associated musculoskeletal stress.
+Overall, the main mechanistic concern is tendon toxicity due to overlapping connective tissue vulnerability.
+
+Now generate the output for this case.
+
+Input:
+Drug A: {{drugA}}
+Drug B: {{drugB}}
+
+Top reported signals:
+1. {{condition1}}, {{times1}}
+2. {{condition2}}, {{times2}}
+3. {{condition3}}, {{times3}}"""
+
+        input_text = (
+            input_text
+            .replace("{{drugA}}", drug_name)
+            .replace("{{drugB}}", current_medication)
+            .replace("{{condition1}}", str(top_three[0].get("condition_name") or "Unknown condition"))
+            .replace("{{times1}}", str(top_three[0].get("prr_text") or "N/A").replace("x", ""))
+            .replace("{{condition2}}", str(top_three[1].get("condition_name") or "Unknown condition"))
+            .replace("{{times2}}", str(top_three[1].get("prr_text") or "N/A").replace("x", ""))
+            .replace("{{condition3}}", str(top_three[2].get("condition_name") or "Unknown condition"))
+            .replace("{{times3}}", str(top_three[2].get("prr_text") or "N/A").replace("x", ""))
         )
 
         request_body = {
             "model": self.settings.openai_model,
             "instructions": instructions,
-            "input": "\n".join(input_lines),
+            "input": input_text,
             "max_output_tokens": 220,
         }
 
@@ -169,13 +229,13 @@ class OpenAIService:
             generated_text = self._extract_output_text(response.json())
         except httpx.HTTPError as exc:
             response_text = getattr(getattr(exc, "response", None), "text", "")
-            print(f"[drug-disease-explanation] source=fallback reason=http_error drug={drug_name or 'N/A'} condition={condition_name or 'N/A'} relation={relation_type or 'N/A'} error={exc} response={response_text}")
+            print(f"[ddi-explanation] source=fallback reason=http_error drug_a={drug_name or 'N/A'} drug_b={current_medication or 'N/A'} error={exc} response={response_text}")
             return fallback_text
 
         final_text = generated_text or fallback_text
         source = "openai" if generated_text else "fallback"
         reason = "generated" if generated_text else "empty_response"
-        print(f"[drug-disease-explanation] source={source} reason={reason} drug={drug_name or 'N/A'} condition={condition_name or 'N/A'} relation={relation_type or 'N/A'} text={final_text}")
+        print(f"[ddi-explanation] source={source} reason={reason} drug_a={drug_name or 'N/A'} drug_b={current_medication or 'N/A'} text={final_text}")
         return final_text
 
     async def generate_drug_disease_alert_text(self, payload: dict) -> str:
