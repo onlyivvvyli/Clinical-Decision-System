@@ -176,6 +176,9 @@ class KGService:
                 continue
 
             dedupe_key = condition_name.strip().casefold()
+            if dedupe_key in {"economic problem", "prescribed overdose"}:
+                continue
+
             if dedupe_key in seen_condition_names:
                 continue
 
