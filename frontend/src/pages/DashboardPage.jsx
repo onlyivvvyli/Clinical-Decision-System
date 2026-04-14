@@ -53,10 +53,9 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <div className="summary-grid">
+      <div className="summary-grid dashboard-summary-grid">
         <SummaryCard label="Patients" value={patientCount ?? "..."} hint="Available from FHIR Patient resources" />
         <SummaryCard label="Recent Alerts" value={alerts.length} hint="Last 20 prescription log records" />
-        <SummaryCard label="DDI Default" value={formatStrictness(safetySettings.ddiStrictness)} hint="Auto-applied to all later prescription checks" />
       </div>
 
       <SectionCard
@@ -68,7 +67,7 @@ export default function DashboardPage() {
           </button>
         }
       >
-        <div className="kv-grid settings-kv-grid">
+        <div className="kv-grid settings-kv-grid dashboard-settings-kv-grid">
           <div>
             <span>DDI strictness</span>
             <strong>{formatStrictness(safetySettings.ddiStrictness)}</strong>
@@ -78,12 +77,8 @@ export default function DashboardPage() {
             <strong>{formatStrictness(safetySettings.drugDiseaseStrictness)}</strong>
           </div>
           <div>
-            <span>AI explanation style</span>
+            <span>AI Explanation Style</span>
             <strong>{formatStrictness(safetySettings.aiExplanationStyle)}</strong>
-          </div>
-          <div>
-            <span>Application behavior</span>
-            <strong>Auto apply to all future checks</strong>
           </div>
         </div>
       </SectionCard>
