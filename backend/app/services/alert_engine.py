@@ -289,7 +289,7 @@ class AlertEngine:
                         current_medication=active_medication_name,
                     )
                     prompt_payload["ai_explanation_style"] = new_medication.ai_explanation_style
-                    explanation = self.openai_service.render_ddi_alert_text(prompt_payload)
+                    explanation = await self.openai_service.generate_ddi_alert_text(prompt_payload)
 
                     ddi_alert = {
                         "type": "DDI",

@@ -475,10 +475,17 @@ function AIClinicalSummary({ alert, alertKey, hideIntro = false }) {
   useEffect(() => {
     let cancelled = false;
     const currentPayload = buildSummaryPayload(alert, safetySettings.aiExplanationStyle);
+    const existingSummary = String(alert?.explanation || alert?.message || "").trim();
 
     async function loadSummary() {
       if (!currentPayload) {
         setSummary({ introLines: [], conditionBullets: [], closingLines: [], notes: [] });
+        setStatus("done");
+        return;
+      }
+
+      if (existingSummary) {
+        setSummary(parseSummaryMessage(existingSummary));
         setStatus("done");
         return;
       }
