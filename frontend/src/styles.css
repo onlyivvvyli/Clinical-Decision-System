@@ -688,6 +688,7 @@ input, select {
 .autocomplete-item span, .selection-banner small, .muted-item { color: var(--muted); }
 .kg-autocomplete-list {
   max-height: 320px;
+  z-index: 80;
 }
 .kg-autocomplete-item strong {
   line-height: 1.35;
@@ -1107,6 +1108,7 @@ input, select {
 .kg-search-shell.with-results {
   min-height: auto;
   padding: 0;
+  overflow: visible;
 }
 
 .kg-search-shell::before {
@@ -1181,6 +1183,8 @@ input, select {
 }
 
 .kg-search-surface {
+  position: relative;
+  z-index: 5;
   width: min(1320px, 100%);
   margin-inline: auto;
   display: grid;
