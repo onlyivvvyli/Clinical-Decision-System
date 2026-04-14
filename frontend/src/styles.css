@@ -88,6 +88,7 @@ button:disabled { cursor: not-allowed; opacity: 0.6; transform: none; }
   justify-content: center;
 }
 .content > * { width: min(1240px, 100%); }
+.content > .kg-search-page { width: min(1560px, 100%); }
 .page-stack { display: grid; gap: 20px; }
 .hero-banner, .login-card, .card {
   background: var(--panel);
@@ -1180,7 +1181,7 @@ input, select {
 }
 
 .kg-search-surface {
-  width: min(980px, 100%);
+  width: min(1320px, 100%);
   margin-inline: auto;
   display: grid;
   gap: 14px;
@@ -1188,31 +1189,34 @@ input, select {
 
 .kg-search-form {
   display: grid;
-  grid-template-columns: minmax(0, 2.4fr) minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 14px;
   align-items: end;
 }
 
 .kg-search-form-hero {
+  width: min(1380px, calc(100vw - 520px));
   grid-template-columns: 1fr;
-  justify-items: center;
-  gap: 18px;
+  justify-items: stretch;
+  gap: 14px;
 }
 
 .kg-search-form-hero .kg-search-input-field {
-  width: min(800px, 100%);
+  width: 100%;
+  max-width: none;
+  justify-self: center;
+}
+
+.kg-search-form-hero .kg-search-label {
+  text-align: center;
 }
 
 .kg-search-form-hero .kg-search-input {
-  min-height: 64px;
-  padding: 18px 26px;
+  min-height: 50px;
+  padding: 10px 30px;
   border-radius: 999px;
-  font-size: 1.08rem;
+  font-size: 1rem;
   box-shadow: 0 14px 32px rgba(28, 47, 61, 0.08);
-}
-
-.kg-search-form-hero .kg-search-scope {
-  width: min(240px, 100%);
 }
 
 .kg-search-form-hero .kg-search-actions {
@@ -1710,9 +1714,7 @@ input, select {
     padding: 14px 18px;
     font-size: 1rem;
   }
-
   .kg-search-form-hero .kg-search-input-field,
-  .kg-search-form-hero .kg-search-scope,
   .kg-search-surface {
     width: 100%;
   }
