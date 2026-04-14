@@ -571,7 +571,7 @@ function DdiRiskCard({ alert, index }) {
   const heroLine = `${triggerDrug} and ${activeDrug} have reported interaction signals.`;
 
   return (
-    <article className="risk-item-card">
+    <article className="risk-item-card ddi-alert-card">
       <div className="ddi-page-stack">
         <section className="ddi-slide-panel">
           <div className="ddi-card-topline">

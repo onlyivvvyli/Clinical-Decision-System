@@ -1929,6 +1929,16 @@ input, select {
   display: none;
 }
 
+.ddi-alert-card {
+  display: grid;
+  gap: 18px;
+  padding: 24px 22px 18px;
+  border: 1px solid #d7e1eb;
+  border-radius: 26px;
+  background: #fff;
+  box-shadow: none;
+}
+
 .drug-disease-alert-card {
   display: grid;
   gap: 18px;
