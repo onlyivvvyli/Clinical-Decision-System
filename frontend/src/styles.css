@@ -89,6 +89,12 @@ button:disabled { cursor: not-allowed; opacity: 0.6; transform: none; }
 }
 .content > * { width: min(1240px, 100%); }
 .content > .kg-search-page { width: min(1560px, 100%); }
+.kg-search-page {
+  padding: 18px;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+}
 .page-stack { display: grid; gap: 20px; }
 .hero-banner, .login-card, .card {
   background: var(--panel);
@@ -1109,6 +1115,7 @@ input, select {
   min-height: auto;
   padding: 0;
   overflow: visible;
+  background: #ffffff;
 }
 
 .kg-search-shell::before {
@@ -1136,6 +1143,10 @@ input, select {
   opacity: 1;
   background:
     radial-gradient(circle at 50% 20%, rgba(125, 164, 192, 0.12), rgba(125, 164, 192, 0) 42%);
+}
+.kg-search-shell.with-results .kg-search-particles,
+.kg-search-shell.with-results::before {
+  display: none;
 }
 
 .kg-search-particles > canvas {
