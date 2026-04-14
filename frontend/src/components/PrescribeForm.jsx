@@ -15,6 +15,7 @@ export default function PrescribeForm({ patientId, doctorId, onSubmit, busy, ini
   const [suggestions, setSuggestions] = useState([]);
   const [searching, setSearching] = useState(false);
   const autocompleteRef = useRef(null);
+  const suppressNextSuggestionFetchRef = useRef(false);
 
 
   useEffect(() => {
@@ -29,6 +30,11 @@ export default function PrescribeForm({ patientId, doctorId, onSubmit, busy, ini
   }, [initialValues]);
 
   useEffect(() => {
+    if (suppressNextSuggestionFetchRef.current) {
+      suppressNextSuggestionFetchRef.current = false;
+      return;
+    }
+
     if (!query.trim()) {
       setSuggestions([]);
       return;
@@ -70,6 +76,7 @@ export default function PrescribeForm({ patientId, doctorId, onSubmit, busy, ini
   };
 
   const selectSuggestion = (item) => {
+    suppressNextSuggestionFetchRef.current = true;
     setForm((current) => ({
       ...current,
       scdName: item.name,
@@ -77,6 +84,7 @@ export default function PrescribeForm({ patientId, doctorId, onSubmit, busy, ini
     }));
     setQuery(item.name);
     setSuggestions([]);
+    setSearching(false);
   };
 
   const payload = {
