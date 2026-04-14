@@ -1215,7 +1215,6 @@ function TabBar({ activeTab, setActiveTab }) {
 
 
 
-        ["raw", "Raw"],
 
 
 
@@ -2162,30 +2161,6 @@ function TablePanel({ relationships, showEvidenceMetrics }) {
 
 
     </div>
-
-
-
-  );
-
-
-
-}
-
-
-
-
-
-
-
-function RawPanel({ payload }) {
-
-
-
-  return (
-
-
-
-    <pre className="kg-raw-panel">{JSON.stringify(payload, null, 2)}</pre>
 
 
 
@@ -3311,54 +3286,6 @@ export default function KnowledgeGraphSearchPage() {
 
 
 
-  const rawPayload = useMemo(
-
-
-
-    () => ({
-
-
-
-      searched_query: result?.query,
-
-
-
-      searched_entity_type: result?.entity_type,
-
-
-
-      selected_node: result?.selected_node,
-
-
-
-      filtered_relationships: filteredRelationships,
-
-
-
-      total_filtered_relationships: filteredRelationships.length,
-
-
-
-      raw: result?.raw,
-
-
-
-    }),
-
-
-
-    [result, filteredRelationships],
-
-
-
-  );
-
-
-
-
-
-
-
   const handleNodeSearch = async (node) => {
 
 
@@ -3824,10 +3751,6 @@ export default function KnowledgeGraphSearchPage() {
 
 
           {activeTab === "table" ? <TablePanel relationships={tableRelationships} showEvidenceMetrics={showEvidenceMetrics} /> : null}
-
-
-
-          {activeTab === "raw" ? <RawPanel payload={rawPayload} /> : null}
 
 
 
