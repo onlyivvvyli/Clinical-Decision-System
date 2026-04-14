@@ -149,6 +149,7 @@ class AlertEngine:
         ingredient_rxcui: str,
         ingredient_name: str,
         disease_match: dict,
+        ai_explanation_style: str = "balanced",
     ) -> dict:
         relation_type = "contraindicated_for" if relation_kind == "CONTRAINDICATION" else "off_label_use_for"
         condition_name = disease_match.get("disease_name") or "Unknown condition"
@@ -169,6 +170,7 @@ class AlertEngine:
             "relation_type": relation_type,
             "evidence_source": evidence_source,
             "evidence_strength": evidence_strength,
+            "ai_explanation_style": ai_explanation_style,
         }
         explanation = await self.openai_service.generate_drug_disease_alert_text(prompt_payload)
 
@@ -286,6 +288,7 @@ class AlertEngine:
                         trigger_ingredient=ingredient_name,
                         current_medication=active_medication_name,
                     )
+                    prompt_payload["ai_explanation_style"] = new_medication.ai_explanation_style
                     explanation = self.openai_service.render_ddi_alert_text(prompt_payload)
 
                     ddi_alert = {
@@ -338,6 +341,7 @@ class AlertEngine:
                         ingredient_rxcui=ingredient_rxcui,
                         ingredient_name=ingredient_name,
                         disease_match=item,
+                        ai_explanation_style=new_medication.ai_explanation_style,
                     )
                     drug_disease_alerts.append(contra_alert)
                     alerts.append(contra_alert)

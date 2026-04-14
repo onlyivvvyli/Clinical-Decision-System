@@ -28,6 +28,16 @@ function getDrugDiseaseStrictnessDescription(value) {
   return "Off skips all drug-disease checks.";
 }
 
+function getAiExplanationStyleDescription(value) {
+  if (value === "conservative") {
+    return "Conservative uses more deterministic, evidence-grounded language.";
+  }
+  if (value === "exploratory") {
+    return "Exploratory allows slightly broader clinical reasoning.";
+  }
+  return "Balanced is the default recommended setting.";
+}
+
 export default function SafetySettingsPanel({ compact = false, onApplyComplete = null }) {
   const {
     safetySettings,
@@ -63,6 +73,7 @@ export default function SafetySettingsPanel({ compact = false, onApplyComplete =
     () => (
       draftSettings.ddiStrictness !== safetySettings.ddiStrictness
       || draftSettings.drugDiseaseStrictness !== safetySettings.drugDiseaseStrictness
+      || draftSettings.aiExplanationStyle !== safetySettings.aiExplanationStyle
     ),
     [draftSettings, safetySettings],
   );
@@ -99,6 +110,17 @@ export default function SafetySettingsPanel({ compact = false, onApplyComplete =
           </select>
           <small className="muted">{getDrugDiseaseStrictnessDescription(draftSettings.drugDiseaseStrictness)}</small>
         </label>
+
+        <label className="safety-settings-field">
+          <span className="safety-settings-field-title">AI Explanation Style</span>
+          <select name="aiExplanationStyle" value={draftSettings.aiExplanationStyle} onChange={handleChange}>
+            <option value="conservative">Conservative</option>
+            <option value="balanced">Balanced</option>
+            <option value="exploratory">Exploratory</option>
+          </select>
+          <small className="muted">Controls how conservative or exploratory the AI-generated explanations are.</small>
+          <small className="muted">{getAiExplanationStyleDescription(draftSettings.aiExplanationStyle)}</small>
+        </label>
       </div>
 
       <div className={`settings-note-card ${compact ? "compact" : ""}`}>
@@ -118,6 +140,7 @@ export default function SafetySettingsPanel({ compact = false, onApplyComplete =
       <div className="safety-settings-current-values">
         <span>Current DDI: <strong>{formatStrictness(safetySettings.ddiStrictness)}</strong></span>
         <span>Current drug-disease: <strong>{formatStrictness(safetySettings.drugDiseaseStrictness)}</strong></span>
+        <span>Current AI explanation style: <strong>{formatStrictness(safetySettings.aiExplanationStyle)}</strong></span>
       </div>
     </div>
   );

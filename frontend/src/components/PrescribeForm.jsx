@@ -106,6 +106,7 @@ export default function PrescribeForm({ patientId, doctorId, onSubmit, busy, ini
     reason: form.reason,
     ddiStrictness: safetySettings.ddiStrictness,
     drugDiseaseStrictness: safetySettings.drugDiseaseStrictness,
+    aiExplanationStyle: safetySettings.aiExplanationStyle,
   };
 
   const canSubmit = Number.isFinite(payload.scdRxcui) && payload.scdRxcui > 0;

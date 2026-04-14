@@ -22,6 +22,7 @@ class PrescriptionCheckRequest(BaseModel):
         default="full",
         alias="drugDiseaseStrictness",
     )
+    ai_explanation_style: str = Field(default="balanced", alias="aiExplanationStyle")
 
 
 class PrescriptionSubmitRequest(PrescriptionCheckRequest):

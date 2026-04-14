@@ -7,6 +7,7 @@ const SAFETY_SETTINGS_KEY = "clinical-safety-settings";
 const defaultSafetySettings = {
   ddiStrictness: "standard",
   drugDiseaseStrictness: "full",
+  aiExplanationStyle: "balanced",
 };
 
 export function AuthProvider({ children }) {
@@ -30,6 +31,7 @@ export function AuthProvider({ children }) {
       setSafetySettings({
         ddiStrictness: parsedSettings.ddiStrictness || defaultSafetySettings.ddiStrictness,
         drugDiseaseStrictness: parsedSettings.drugDiseaseStrictness || defaultSafetySettings.drugDiseaseStrictness,
+        aiExplanationStyle: parsedSettings.aiExplanationStyle || defaultSafetySettings.aiExplanationStyle,
       });
     }
   }, []);
@@ -76,6 +78,7 @@ export function AuthProvider({ children }) {
     const normalized = {
       ddiStrictness: nextSettings.ddiStrictness || defaultSafetySettings.ddiStrictness,
       drugDiseaseStrictness: nextSettings.drugDiseaseStrictness || defaultSafetySettings.drugDiseaseStrictness,
+      aiExplanationStyle: nextSettings.aiExplanationStyle || defaultSafetySettings.aiExplanationStyle,
     };
     setSafetySettings(normalized);
     localStorage.setItem(SAFETY_SETTINGS_KEY, JSON.stringify(normalized));

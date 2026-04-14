@@ -78,6 +78,10 @@ export default function DashboardPage() {
             <strong>{formatStrictness(safetySettings.drugDiseaseStrictness)}</strong>
           </div>
           <div>
+            <span>AI explanation style</span>
+            <strong>{formatStrictness(safetySettings.aiExplanationStyle)}</strong>
+          </div>
+          <div>
             <span>Application behavior</span>
             <strong>Auto apply to all future checks</strong>
           </div>

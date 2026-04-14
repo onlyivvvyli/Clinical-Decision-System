@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 
 function EmptyState({ message }) {
@@ -39,7 +40,7 @@ function joinIngredients(items) {
   return `${cleaned.slice(0, -1).join(", ")}, and ${cleaned.at(-1)}`;
 }
 
-function buildSummaryPayload(alert) {
+function buildSummaryPayload(alert, aiExplanationStyle = "balanced") {
   const evidencePayload = alert?.evidence_payload || {};
   const topConditions = selectTopConditions(evidencePayload.top_conditions || alert?.evidence || [], 3);
 
@@ -70,6 +71,7 @@ function buildSummaryPayload(alert) {
       alert?.active_drug?.name ||
       alert?.active_drug_name,
     top_conditions: topConditions,
+    ai_explanation_style: evidencePayload.ai_explanation_style || aiExplanationStyle,
   };
 }
 
@@ -465,13 +467,14 @@ function DrugDiseaseEvidenceCard({ item }) {
 }
 
 function AIClinicalSummary({ alert, alertKey, hideIntro = false }) {
+  const { safetySettings } = useAuth();
   const [summary, setSummary] = useState({ introLines: [], conditionBullets: [], closingLines: [], notes: [] });
   const [status, setStatus] = useState("idle");
-  const promptPayload = buildSummaryPayload(alert);
+  const promptPayload = buildSummaryPayload(alert, safetySettings.aiExplanationStyle);
 
   useEffect(() => {
     let cancelled = false;
-    const currentPayload = buildSummaryPayload(alert);
+    const currentPayload = buildSummaryPayload(alert, safetySettings.aiExplanationStyle);
 
     async function loadSummary() {
       if (!currentPayload) {
@@ -501,7 +504,7 @@ function AIClinicalSummary({ alert, alertKey, hideIntro = false }) {
     return () => {
       cancelled = true;
     };
-  }, [alert, alertKey]);
+  }, [alert, alertKey, safetySettings.aiExplanationStyle]);
 
   if (!promptPayload) {
     return (

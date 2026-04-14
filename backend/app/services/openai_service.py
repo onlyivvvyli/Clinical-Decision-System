@@ -25,6 +25,31 @@ class OpenAIService:
         return bool(self.settings.openai_api_key.strip())
 
     @staticmethod
+    def _normalize_explanation_style(value: str | None) -> str:
+        normalized = str(value or "balanced").strip().casefold()
+        if normalized in {"conservative", "balanced", "exploratory"}:
+            return normalized
+        return "balanced"
+
+    @classmethod
+    def _explanation_style_config(cls, value: str | None) -> tuple[str, float]:
+        style = cls._normalize_explanation_style(value)
+        if style == "conservative":
+            return (
+                "AI explanation style: Conservative. Stay tightly evidence-grounded, prefer deterministic phrasing, and avoid broader mechanistic extrapolation unless it is very well established.",
+                0.1,
+            )
+        if style == "exploratory":
+            return (
+                "AI explanation style: Exploratory. You may use slightly broader but still clinically reasonable mechanistic interpretation when it helps connect the signal pattern.",
+                0.7,
+            )
+        return (
+            "AI explanation style: Balanced. Keep explanations evidence-grounded while allowing moderate, well-established clinical reasoning when useful.",
+            0.3,
+        )
+
+    @staticmethod
     def _extract_output_text(payload: dict) -> str:
         output_text = str(payload.get("output_text") or "").strip()
         if output_text:
@@ -92,6 +117,7 @@ class OpenAIService:
         trigger_ingredient = str(payload.get("trigger_ingredient") or payload.get("drug_a") or "").strip()
         current_medication = str(payload.get("current_medication") or payload.get("drug_b") or "").strip()
         top_conditions = payload.get("top_conditions") or []
+        style_instruction, temperature = self._explanation_style_config(payload.get("ai_explanation_style"))
 
         if not self.enabled:
             print(f"[ddi-explanation] source=fallback reason=openai_disabled drug_a={drug_name or 'N/A'} drug_b={current_medication or 'N/A'}")
@@ -127,7 +153,10 @@ Rules:
 7. The summary sentence should synthesize the overall mechanistic concern suggested by the signal pattern.
 8. Do not invent unsupported evidence beyond standard pharmacology knowledge.
 9. Do not omit the quantitative multipliers.
-10. Use one sentence per bullet."""
+10. Use one sentence per bullet.
+11. Follow this style guidance exactly: {style_instruction}"""
+
+        instructions = instructions.replace("{style_instruction}", style_instruction)
 
         top_three = top_conditions[:3]
 
@@ -214,6 +243,7 @@ Top reported signals:
             "instructions": instructions,
             "input": input_text,
             "max_output_tokens": 220,
+            "temperature": temperature,
         }
 
         headers = {
@@ -248,6 +278,7 @@ Top reported signals:
         relation_type = str(payload.get("relation_type") or "").strip()
         evidence_label = str(payload.get("evidence_strength") or payload.get("evidence_source") or "").strip()
         alert_type = "Contraindication" if relation_type == "contraindicated_for" else "Off-label use"
+        style_instruction, temperature = self._explanation_style_config(payload.get("ai_explanation_style"))
 
         if not self.enabled:
             print(f"[drug-disease-explanation] source=fallback reason=openai_disabled drug={drug_name or 'N/A'} condition={condition_name or 'N/A'} relation={relation_type or 'N/A'}")
@@ -271,7 +302,8 @@ Top reported signals:
             "- If the relation is Off_label_use_for, explain it as an off-label use alert and clarify that off-label use does not necessarily mean inappropriate use.\n"
             "- Keep the explanation concise, natural, and appropriate for a clinician-facing UI.\n"
             "- Output only the explanation text.\n"
-            "- Write 2 to 4 sentences."
+            "- Write 2 to 4 sentences.\n"
+            f"- {style_instruction}"
         )
 
         user_prompt = (
@@ -299,6 +331,7 @@ Top reported signals:
             "instructions": system_prompt,
             "input": user_prompt,
             "max_output_tokens": 140,
+            "temperature": temperature,
         }
 
         headers = {
