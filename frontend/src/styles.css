@@ -1782,6 +1782,33 @@ input, select {
   gap: 10px;
 }
 
+.ddi-card-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ddi-alert-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 52px;
+  padding: 0 20px;
+  border-radius: 999px;
+  background: #fff0f3;
+  color: #cc133f;
+  font-size: clamp(1rem, 1.6vw, 1.2rem);
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.ddi-hero-line {
+  margin: 0;
+  color: #142a42;
+  font-size: 1.02rem;
+  line-height: 1.7;
+}
+
 .ddi-slide-panel {
   padding-top: 0;
 }

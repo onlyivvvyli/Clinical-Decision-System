@@ -442,7 +442,7 @@ function DrugDiseaseEvidenceCard({ item }) {
   );
 }
 
-function AIClinicalSummary({ alert, alertKey }) {
+function AIClinicalSummary({ alert, alertKey, hideIntro = false }) {
   const [summary, setSummary] = useState({ introLines: [], conditionBullets: [], notes: [] });
   const [status, setStatus] = useState("idle");
   const promptPayload = buildSummaryPayload(alert);
@@ -485,7 +485,7 @@ function AIClinicalSummary({ alert, alertKey }) {
     return (
       <section className="ddi-section-card ai-summary-card">
         <div className="ddi-section-header">
-          <h3>AI Clinical Summary</h3>
+          <h3>Why this was flagged</h3>
         </div>
         <div className="ai-summary-copy">
           <p>No high-confidence evidence summary available.</p>
@@ -497,10 +497,10 @@ function AIClinicalSummary({ alert, alertKey }) {
   return (
     <section className="ddi-section-card ai-summary-card">
       <div className="ddi-section-header">
-        <h3>AI Clinical Summary</h3>
+        <h3>Why this was flagged</h3>
       </div>
       <div className="ai-summary-copy">
-        {summary.introLines.map((line, index) => (
+        {(hideIntro ? [] : summary.introLines).map((line, index) => (
           <p key={`${line}-${index}`} className="ai-summary-intro">{renderHighlightedDrugLine(line, alert)}</p>
         ))}
         {summary.conditionBullets.length ? <p className="ai-summary-label">Top conditions include:</p> : null}
@@ -533,15 +533,17 @@ function DdiRiskCard({ alert, index }) {
   const evidenceItems = alert.evidence_payload?.top_conditions || alert.evidence || [];
   const triggerDrug = alert.new_drug_scd_name || alert.new_drug_name || "Selected drug";
   const activeDrug = alert.active_medication_name || alert.active_drug_name || "Current medication";
+  const heroLine = `${triggerDrug} and ${activeDrug} have reported interaction signals.`;
 
   return (
     <article className="risk-item-card">
       <div className="ddi-page-stack">
         <section className="ddi-slide-panel">
-          <div className="ddi-content-slide-header">
-            <strong>AI Clinical Summary</strong>
+          <div className="ddi-card-topline">
+            <div className="ddi-alert-pill">Potential Interaction</div>
           </div>
-          <AIClinicalSummary alert={alert} alertKey={alertKey} />
+          <p className="ddi-hero-line">{renderHighlightedDrugLine(heroLine, alert)}</p>
+          <AIClinicalSummary alert={alert} alertKey={alertKey} hideIntro />
         </section>
 
         <section className="ddi-slide-panel">
