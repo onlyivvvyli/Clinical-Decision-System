@@ -310,13 +310,68 @@ input, select {
 .form-intro h3 { margin: 0; font-size: 1.35rem; }
 .form-intro span { color: var(--muted); font-size: 0.98rem; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-
-.compact-prescribe-form { gap: 12px; }
-.compact-form-grid { gap: 12px; }
-.compact-prescribe-form label { gap: 6px; font-size: 0.94rem; }
-.compact-prescribe-form input { padding: 10px 12px; }
-.compact-button-row { margin-top: 2px; }
-.compact-prescribe-form .autocomplete-list { top: calc(100% + 4px); }
+.prescribe-order-form {
+  gap: 22px;
+}
+.prescribe-order-fields {
+  display: grid;
+  gap: 16px;
+}
+.prescribe-order-field {
+  display: grid;
+  gap: 8px;
+  color: var(--primary-strong);
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+.prescribe-order-field span {
+  display: block;
+}
+.prescribe-order-field input,
+.prescribe-order-field textarea {
+  padding: 13px 16px;
+  border-radius: 6px;
+  border: 1px solid rgba(175, 191, 207, 0.96);
+  background: #fff;
+  color: var(--text);
+  font-size: 0.95rem;
+  box-shadow: none;
+}
+.prescribe-order-field textarea {
+  min-height: 116px;
+  resize: vertical;
+}
+.prescribe-order-field input::placeholder,
+.prescribe-order-field textarea::placeholder {
+  color: #8ea3c1;
+}
+.prescribe-order-readonly {
+  background: #f7fbff;
+  color: #6f87a3;
+  cursor: not-allowed;
+}
+.prescribe-order-autocomplete-list {
+  top: calc(100% + 6px);
+  z-index: 60;
+  border-radius: 8px;
+  padding: 8px;
+}
+.prescribe-order-autocomplete-item {
+  border-radius: 6px;
+  padding: 14px 16px;
+}
+.prescribe-order-autocomplete-item strong {
+  font-size: 1rem;
+}
+.prescribe-order-actions {
+  justify-content: flex-end;
+}
+.prescribe-order-submit {
+  min-width: 260px;
+  padding: 14px 20px;
+  border-radius: 8px;
+  font-size: 0.96rem;
+}
 .full-width { grid-column: 1 / -1; }
 .button-row { display: flex; gap: 12px; justify-content: flex-end; }
 .stack { display: grid; gap: 12px; }
@@ -797,6 +852,29 @@ input, select {
   border: 1px solid rgba(28, 47, 61, 0.12);
   box-shadow: 0 18px 36px rgba(28, 47, 61, 0.12);
 }
+.prescribe-modal-card {
+  width: min(720px, 100%);
+  padding: 24px 28px 28px;
+  border-radius: 12px;
+}
+.prescribe-modal-header {
+  margin-bottom: 18px;
+}
+.prescribe-modal-header h2 {
+  font-size: 2rem;
+  line-height: 1.12;
+}
+.prescribe-modal-header .eyebrow {
+  margin-bottom: 8px;
+  color: #657d98;
+}
+.prescribe-modal-header .close-action {
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  background: #eef4fa;
+  font-size: 1.15rem;
+}
 .close-action { min-width: 48px; justify-content: center; padding-inline: 0; }
 .safety-drawer-trigger {
   position: fixed;
@@ -1099,6 +1177,11 @@ input, select {
   .pagination-actions .ghost-button { flex: 1; }
   .modal-backdrop { padding: 12px; }
   .modal-card, .check-modal-card { width: 100%; padding: 18px; border-radius: 8px; }
+  .prescribe-modal-card { padding: 18px; border-radius: 10px; }
+  .prescribe-modal-header .close-action,
+  .prescribe-order-submit { width: 100%; min-width: 0; }
+  .prescribe-order-field input,
+  .prescribe-order-field textarea { padding: 12px 14px; border-radius: 6px; }
 }
 .kg-search-shell {
   position: relative;

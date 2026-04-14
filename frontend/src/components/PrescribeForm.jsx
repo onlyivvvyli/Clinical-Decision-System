@@ -17,7 +17,6 @@ export default function PrescribeForm({ patientId, doctorId, onSubmit, busy, ini
   const autocompleteRef = useRef(null);
   const suppressNextSuggestionFetchRef = useRef(false);
 
-
   useEffect(() => {
     setForm({
       scdName: initialValues?.scdName || "",
@@ -75,6 +74,16 @@ export default function PrescribeForm({ patientId, doctorId, onSubmit, busy, ini
     setForm((current) => ({ ...current, [name]: value }));
   };
 
+  const handleMedicationChange = (event) => {
+    const nextValue = event.target.value;
+    setQuery(nextValue);
+    setForm((current) => ({
+      ...current,
+      scdName: nextValue,
+      scdRxcui: current.scdName === nextValue ? current.scdRxcui : "",
+    }));
+  };
+
   const selectSuggestion = (item) => {
     suppressNextSuggestionFetchRef.current = true;
     setForm((current) => ({
@@ -102,26 +111,23 @@ export default function PrescribeForm({ patientId, doctorId, onSubmit, busy, ini
   const canSubmit = Number.isFinite(payload.scdRxcui) && payload.scdRxcui > 0;
 
   return (
-    <form className="prescribe-form compact-prescribe-form" onSubmit={(event) => event.preventDefault()}>
-      <div className="form-grid compact-form-grid">
-        <label ref={autocompleteRef} className="full-width autocomplete-field">
-          Search SCD Name
+    <form className="prescribe-form prescribe-order-form" onSubmit={(event) => event.preventDefault()}>
+      <div className="prescribe-order-fields">
+        <label ref={autocompleteRef} className="autocomplete-field prescribe-order-field">
+          <span>Search medication</span>
           <input
             value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setForm((current) => ({ ...current, scdName: event.target.value }));
-            }}
-            placeholder="Search medication"
+            onChange={handleMedicationChange}
+            placeholder="Search SCD name"
           />
           {query && (suggestions.length > 0 || searching) ? (
-            <div className="autocomplete-list">
+            <div className="autocomplete-list prescribe-order-autocomplete-list">
               {searching ? <div className="autocomplete-item muted-item">Searching...</div> : null}
               {suggestions.map((item) => (
                 <button
                   key={item.rxcui}
                   type="button"
-                  className="autocomplete-item"
+                  className="autocomplete-item prescribe-order-autocomplete-item"
                   onClick={() => selectSuggestion(item)}
                 >
                   <strong>{item.name}</strong>
@@ -132,32 +138,41 @@ export default function PrescribeForm({ patientId, doctorId, onSubmit, busy, ini
           ) : null}
         </label>
 
-        <label>
-          RxCUI
+        <label className="prescribe-order-field">
+          <span>RxCUI</span>
           <input
-            name="scdRxcui"
             value={form.scdRxcui}
-            onChange={updateField}
             placeholder="RxCUI"
-            inputMode="numeric"
+            readOnly
+            aria-readonly="true"
+            className="prescribe-order-readonly"
           />
         </label>
-        <label>
-          Dosage
-          <input name="dosage" value={form.dosage} onChange={updateField} />
+
+        <label className="prescribe-order-field">
+          <span>Dosage</span>
+          <input name="dosage" value={form.dosage} onChange={updateField} placeholder="Dosage" />
         </label>
-        <label>
-          Frequency
-          <input name="frequency" value={form.frequency} onChange={updateField} />
+
+        <label className="prescribe-order-field">
+          <span>Frequency</span>
+          <input name="frequency" value={form.frequency} onChange={updateField} placeholder="Frequency" />
         </label>
-        <label className="full-width">
-          Reason
-          <input name="reason" value={form.reason} onChange={updateField} />
+
+        <label className="prescribe-order-field">
+          <span>Reason</span>
+          <textarea
+            name="reason"
+            value={form.reason}
+            onChange={updateField}
+            placeholder="Optional prescribing indication"
+            rows={4}
+          />
         </label>
       </div>
 
-      <div className="button-row compact-button-row">
-        <button type="button" className="primary-button" disabled={busy || !canSubmit} onClick={() => onSubmit(payload)}>
+      <div className="button-row prescribe-order-actions">
+        <button type="button" className="primary-button prescribe-order-submit" disabled={busy || !canSubmit} onClick={() => onSubmit(payload)}>
           Submit Prescription
         </button>
       </div>

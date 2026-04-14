@@ -505,8 +505,8 @@ export default function PatientDetailPage() {
 
       {showPrescribeModal ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
-          <div className="modal-card">
-            <div className="section-header">
+          <div className="modal-card prescribe-modal-card">
+            <div className="section-header prescribe-modal-header">
               <div>
                 <p className="eyebrow">New Order</p>
                 <h2>Prescribe Medication</h2>
