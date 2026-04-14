@@ -181,111 +181,64 @@ class OpenAIService:
     async def generate_drug_disease_alert_text(self, payload: dict) -> str:
         fallback_text = self.render_drug_disease_alert_text(payload)
         drug_name = str(payload.get("prescribed_drug_name") or "").strip()
-        ingredients = str(payload.get("ingredients") or payload.get("mapped_drug_name") or "").strip()
+        mapped_drug_name = str(payload.get("mapped_drug_name") or payload.get("ingredients") or "").strip()
+        drug_rxcui = str(payload.get("mapped_drug_rxnorm_id") or "").strip()
         condition_name = str(payload.get("condition_name") or "").strip()
+        condition_snomed = str(payload.get("condition_snomed_id") or "").strip()
         relation_type = str(payload.get("relation_type") or "").strip()
+        evidence_label = str(payload.get("evidence_strength") or payload.get("evidence_source") or "").strip()
+        alert_type = "Contraindication" if relation_type == "contraindicated_for" else "Off-label use"
 
         if not self.enabled:
             print(f"[drug-disease-explanation] source=fallback reason=openai_disabled drug={drug_name or 'N/A'} condition={condition_name or 'N/A'} relation={relation_type or 'N/A'}")
             return fallback_text
 
-        if not drug_name or not ingredients or not condition_name or not relation_type:
+        if not drug_name or not mapped_drug_name or not condition_name or not relation_type:
             print(f"[drug-disease-explanation] source=fallback reason=missing_input drug={drug_name or 'N/A'} condition={condition_name or 'N/A'} relation={relation_type or 'N/A'}")
             return fallback_text
 
         system_prompt = (
-            "You are helping generate concise clinical safety explanations for a prescribing alert interface.\n\n"
-            "Your task is to write exactly ONE short sentence for clinicians explaining why a flagged drug-condition relationship may matter clinically.\n\n"
-            "The alert has already been determined by the backend. You are not making the safety decision. You are only explaining it.\n\n"
-            "When helpful, infer and use the following types of information:\n"
-            "- the relevant active ingredient\n"
-            "- the drug class\n"
-            "- the pharmacologic mechanism or major physiologic effect\n"
-            "- the likely condition-specific consequence\n\n"
-            "Priority of explanation:\n"
-            "1. mention the most clinically relevant ingredient, drug class, or mechanism\n"
-            "2. connect it to a plausible consequence for the patient's active condition\n"
-            "3. keep the explanation readable and concise\n\n"
-            "Style requirements:\n"
-            "- exactly one sentence\n"
-            "- 18 to 32 words preferred\n"
-            "- professional, clinical, readable\n"
-            "- specific when possible, but conservative\n"
-            "- prioritize likely mechanism over vague warnings\n\n"
-            "Hard constraints:\n"
-            "- do not restate that this is a contraindication or off-label relationship\n"
-            "- do not mention the knowledge graph, database, alert engine, or backend\n"
-            "- do not mention missing evidence, confidence scores, or source reliability\n"
-            "- do not invent highly specific facts such as incidence rates, study outcomes, lab values, or guideline statements unless explicitly provided\n"
-            "- do not claim certainty when the relationship is only suggestive; prefer wording like may, could, can, or should be considered\n"
-            "- do not produce more than one sentence\n"
-            "- do not use bullet points or lists\n\n"
-            "Reasoning guidance:\n"
-            "- If the drug name is a brand or combination product, use the most relevant active ingredient or main pharmacologic effect in the explanation.\n"
-            "- If multiple ingredients are present, focus on the ingredient most relevant to the condition-specific concern.\n"
-            "- If a well-known drug class is clinically clearer than the ingredient name alone, include the class.\n"
-            "- If a known mechanism is more useful than the class name, include the mechanism.\n"
-            "- The consequence should be tailored to the condition, not generic. For example:\n"
-            "  - hypertension -> raise blood pressure, worsen blood pressure control, increase cardiovascular strain\n"
-            "  - peptic ulcer disease -> gastrointestinal irritation, bleeding risk, ulcer worsening\n"
-            "  - asthma -> bronchospasm risk, airway reactivity\n"
-            "  - chronic kidney disease -> reduced renal perfusion, nephrotoxicity risk, worsening kidney function\n"
-            "  - diabetes -> altered glycemic control\n"
-            "  - seizure disorder -> lower seizure threshold\n"
-            "- For off-label use, the tone should be lower urgency than for contraindication. It may mention non-standard indication, variable benefit, monitoring needs, or context-dependent appropriateness, but still tie to the condition.\n\n"
-            "Output requirements:\n"
-            "Return only the final sentence and nothing else."
+            "You are generating a concise clinician-facing explanation for a drug-disease prescribing alert.\n\n"
+            "Your job is to explain the alert based on the structured evidence provided.\n\n"
+            "Important rules:\n"
+            "- Use only the evidence provided in the input.\n"
+            "- You may add a cautious, high-level clinical interpretation if it is broadly consistent with well-known general clinical knowledge.\n"
+            "- Do not invent specific molecular, pharmacokinetic, or pharmacodynamic mechanisms unless they are explicitly provided.\n"
+            "- Do not introduce new evidence, statistics, guidelines, or claims not supported by the input.\n"
+            "- Do not overstate certainty.\n"
+            "- Use cautious wording such as 'may', 'could', 'possible concern', 'may warrant caution', or 'may warrant review'.\n"
+            "- If the relation is Contraindicated_for, explain it as a contraindication alert and emphasize caution.\n"
+            "- If the relation is Off_label_use_for, explain it as an off-label use alert and clarify that off-label use does not necessarily mean inappropriate use.\n"
+            "- Keep the explanation concise, natural, and appropriate for a clinician-facing UI.\n"
+            "- Output only the explanation text.\n"
+            "- Write 2 to 4 sentences."
         )
 
         user_prompt = (
-            f"Drug name: {drug_name}\n"
-            f"Ingredients: {ingredients}\n"
-            f"Relationship type: {relation_type}\n"
-            f"Condition: {condition_name}\n\n"
-            "Examples:\n\n"
-            "Example 1\n"
-            "Drug name: Pseudoephedrine 60 mg tablet\n"
-            "Ingredients: Pseudoephedrine\n"
-            "Relationship type: contraindicated_for\n"
-            "Condition: Hypertensive disorder\n"
-            "Output:\n"
-            "Its sympathomimetic decongestant effect may raise blood pressure and could worsen hypertension or increase cardiovascular strain.\n\n"
-            "Example 2\n"
-            "Drug name: Ibuprofen\n"
-            "Ingredients: Ibuprofen\n"
-            "Relationship type: contraindicated_for\n"
-            "Condition: Peptic ulcer disease\n"
-            "Output:\n"
-            "As an NSAID, it may increase gastrointestinal irritation and bleeding risk, which could worsen ulcer disease or lead to related complications.\n\n"
-            "Example 3\n"
-            "Drug name: Propranolol\n"
-            "Ingredients: Propranolol\n"
-            "Relationship type: contraindicated_for\n"
-            "Condition: Asthma\n"
-            "Output:\n"
-            "Its nonselective beta-blocking effect may provoke bronchospasm and could worsen airway reactivity in patients with asthma.\n\n"
-            "Example 4\n"
-            "Drug name: Lisinopril\n"
-            "Ingredients: Lisinopril\n"
-            "Relationship type: contraindicated_for\n"
-            "Condition: Chronic kidney disease\n"
-            "Output:\n"
-            "Its effects on renal hemodynamics may reduce kidney perfusion in susceptible patients and could worsen underlying renal impairment.\n\n"
-            "Example 5\n"
-            "Drug name: Gabapentin\n"
-            "Ingredients: Gabapentin\n"
-            "Relationship type: off_label_use_for\n"
-            "Condition: Chronic cough\n"
-            "Output:\n"
-            "Its neuromodulatory effect may help symptom control in some contexts, but variable benefit and sedation should be considered for this condition.\n\n"
-            "Now write the explanation sentence for the current input."
+            "Generate a short 'Why this was flagged' explanation for a drug-disease alert.\n\n"
+            "Structured evidence:\n"
+            f"- Alert type: {alert_type}\n"
+            f"- Prescribing drug: {drug_name}\n"
+            f"- Mapped drug: {mapped_drug_name}\n"
+            f"- Drug RxCUI: {drug_rxcui or 'N/A'}\n"
+            f"- Active condition: {condition_name}\n"
+            f"- Condition SNOMED: {condition_snomed or 'N/A'}\n"
+            f"- Knowledge graph relation: {relation_type}\n"
+            f"- Evidence strength/source: {evidence_label or 'N/A'}\n\n"
+            "Requirements:\n"
+            "- Base the explanation only on the structured evidence above.\n"
+            "- Use cautious clinician-friendly language.\n"
+            "- Do not claim a confirmed mechanism unless explicitly supported by the input.\n"
+            "- Do not use bullet points.\n"
+            "- Do not include headings.\n"
+            "- Do not include disclaimer text."
         )
 
         request_body = {
             "model": self.settings.openai_model,
             "instructions": system_prompt,
             "input": user_prompt,
-            "max_output_tokens": 80,
+            "max_output_tokens": 140,
         }
 
         headers = {
