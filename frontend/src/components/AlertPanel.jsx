@@ -343,6 +343,7 @@ function renderDrugDiseaseHeroLine(drugName, conditionName, relationType) {
 }
 
 function GraphEvidenceCard({ alert, evidenceItems }) {
+  const [expanded, setExpanded] = useState(false);
   const prescribingDrug =
     alert.new_drug_scd_name || alert.candidate_drug?.scd_name || alert.candidate_drug?.name || alert.new_drug_name;
   const prescribingIngredient =
@@ -353,65 +354,79 @@ function GraphEvidenceCard({ alert, evidenceItems }) {
     alert.active_drug_in_name || alert.active_drug?.ingredient_name || alert.active_drug_name;
 
   return (
-    <section className="ddi-section-card kg-diagram-card">
-      <div className="ddi-section-header">
-        <h3>Knowledge Graph Evidence</h3>
-        <p>Structured ingredient-level relation derived from the prescribing drug and the active drug.</p>
+    <section className="ddi-section-card kg-diagram-card collapsible-kg-card">
+      <div className="ddi-section-header collapsible-kg-header">
+        <div>
+          <h3>Knowledge Graph Evidence</h3>
+          <p>Structured ingredient-level relation derived from the prescribing drug and the active drug.</p>
+        </div>
+        <button
+          type="button"
+          className="collapse-toggle kg-evidence-toggle"
+          aria-expanded={expanded}
+          aria-label={expanded ? "Collapse knowledge graph evidence" : "Expand knowledge graph evidence"}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          <span>{expanded ? "Hide" : "Show"}</span>
+          <strong>{expanded ? "-" : "+"}</strong>
+        </button>
       </div>
 
-      <div className="kg-diagram-grid">
-        <div className="kg-diagram-top">
-          <div className="kg-diagram-drug-box">
-            <span>Prescribing Drug</span>
-            <strong>{prescribingDrug || "N/A"}</strong>
-          </div>
-          <div className="kg-diagram-drug-box">
-            <span>Active Drug</span>
-            <strong>{activeDrug || "N/A"}</strong>
-          </div>
-        </div>
-
-        <div className="kg-diagram-middle">
-          <div className="kg-map-column">
-            <div className="kg-vertical-line" />
-            <span>contains</span>
-            <div className="kg-arrow-down" />
-          </div>
-          <div className="kg-map-column">
-            <div className="kg-vertical-line" />
-            <span>contains</span>
-            <div className="kg-arrow-down" />
-          </div>
-        </div>
-
-        <div className="kg-diagram-bottom">
-          <div className="kg-ingredient-box">
-            <strong>{prescribingIngredient || "N/A"}</strong>
-          </div>
-
-          <div className="kg-signal-link">
-            <div className="kg-signal-label kg-edge-chip" tabIndex={0}>
-              <strong>{evidenceItems.length} DDI signal{evidenceItems.length === 1 ? "" : "s"}</strong>
-              <div className="kg-edge-tooltip">
-                <div className="kg-tooltip-header">Raw evidence</div>
-                {evidenceItems.map((item, index) => (
-                  <div key={`${item.condition_name || index}-${index}`} className="kg-tooltip-row">
-                    <strong>{item.condition_name || "Unknown condition"}</strong>
-                    <span>PRR: {formatMetric(item.prr)}</span>
-                    <span>mean_reporting_frequency: {formatMetric(item.mean_reporting_frequency)}</span>
-                  </div>
-                ))}
-              </div>
+      {expanded ? (
+        <div className="kg-diagram-grid">
+          <div className="kg-diagram-top">
+            <div className="kg-diagram-drug-box">
+              <span>Prescribing Drug</span>
+              <strong>{prescribingDrug || "N/A"}</strong>
             </div>
-            <div className="kg-horizontal-line" />
-            <div className="kg-arrow-right" />
+            <div className="kg-diagram-drug-box">
+              <span>Active Drug</span>
+              <strong>{activeDrug || "N/A"}</strong>
+            </div>
           </div>
 
-          <div className="kg-ingredient-box">
-            <strong>{activeIngredient || "N/A"}</strong>
+          <div className="kg-diagram-middle">
+            <div className="kg-map-column">
+              <div className="kg-vertical-line" />
+              <span>contains</span>
+              <div className="kg-arrow-down" />
+            </div>
+            <div className="kg-map-column">
+              <div className="kg-vertical-line" />
+              <span>contains</span>
+              <div className="kg-arrow-down" />
+            </div>
+          </div>
+
+          <div className="kg-diagram-bottom">
+            <div className="kg-ingredient-box">
+              <strong>{prescribingIngredient || "N/A"}</strong>
+            </div>
+
+            <div className="kg-signal-link">
+              <div className="kg-signal-label kg-edge-chip" tabIndex={0}>
+                <strong>{evidenceItems.length} DDI signal{evidenceItems.length === 1 ? "" : "s"}</strong>
+                <div className="kg-edge-tooltip">
+                  <div className="kg-tooltip-header">Raw evidence</div>
+                  {evidenceItems.map((item, index) => (
+                    <div key={`${item.condition_name || index}-${index}`} className="kg-tooltip-row">
+                      <strong>{item.condition_name || "Unknown condition"}</strong>
+                      <span>PRR: {formatMetric(item.prr)}</span>
+                      <span>mean_reporting_frequency: {formatMetric(item.mean_reporting_frequency)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="kg-horizontal-line" />
+              <div className="kg-arrow-right" />
+            </div>
+
+            <div className="kg-ingredient-box">
+              <strong>{activeIngredient || "N/A"}</strong>
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
     </section>
   );
 }
