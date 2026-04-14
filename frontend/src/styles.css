@@ -1283,58 +1283,105 @@ input, select {
   align-items: start;
 }
 .kg-graph-stage {
+  position: relative;
   display: grid;
   gap: 10px;
   padding: 14px;
-  border-radius: 8px;
-  border: 1px solid rgba(28, 47, 61, 0.08);
-  background: linear-gradient(180deg, #fbfdff 0%, #f3f8fc 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(44, 92, 140, 0.12);
+  background: linear-gradient(180deg, #f9fcff 0%, #edf5fc 100%);
 }
 .kg-graph-svg {
   width: 100%;
   height: auto;
   min-height: 420px;
+  margin-bottom: 44px;
+  border-radius: 12px;
+  user-select: none;
+  -webkit-user-select: none;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(136, 188, 240, 0.28), transparent 34%),
+    radial-gradient(circle at 80% 12%, rgba(173, 211, 247, 0.2), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(237, 245, 252, 0.98) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  touch-action: none;
+}
+.kg-graph-backdrop {
+  fill: transparent;
+  cursor: grab;
+}
+.kg-graph-backdrop:active {
+  cursor: grabbing;
 }
 .kg-graph-edge {
-  stroke: rgba(43, 111, 156, 0.5);
-  stroke-width: 2;
+  fill: none;
+  stroke: rgba(77, 142, 203, 0.72);
+  stroke-width: 2.6;
+  stroke-linecap: round;
   cursor: pointer;
 }
 .kg-graph-edge.selected {
-  stroke: rgba(32, 79, 112, 0.95);
-  stroke-width: 3;
+  stroke: #1d5f99;
+  stroke-width: 4;
 }
 .kg-graph-edge-hit {
-  fill: rgba(43, 111, 156, 0.14);
+  fill: none;
+  stroke: transparent;
+  stroke-width: 18;
   cursor: pointer;
 }
+.kg-graph-edge-label {
+  font-size: 11px;
+  fill: #56718a;
+  paint-order: stroke;
+  stroke: rgba(248, 252, 255, 0.96);
+  stroke-width: 4px;
+  pointer-events: none;
+}
+.kg-graph-arrow-marker {
+  fill: rgba(77, 142, 203, 0.9);
+}
+.kg-graph-arrow-marker.selected {
+  fill: #1d5f99;
+}
+.kg-graph-reset-fab {
+  position: absolute;
+  right: 20px;
+  bottom: 18px;
+  z-index: 2;
+  padding-inline: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(6px);
+}
 .kg-graph-node-group {
-  cursor: pointer;
+  cursor: grab;
+}
+.kg-graph-node-group.dragging,
+.kg-graph-node-group:active {
+  cursor: grabbing;
 }
 .kg-graph-node {
   stroke-width: 2;
+  transition: stroke 0.18s ease, fill 0.18s ease, filter 0.18s ease;
 }
 .kg-graph-node.center {
-  fill: #2b6f9c;
-  stroke: #204f70;
+  fill: #3e7fbe;
+  stroke: #255984;
 }
 .kg-graph-node.neighbor {
-  fill: #ffffff;
-  stroke: rgba(43, 111, 156, 0.45);
+  fill: #9cc8f4;
+  stroke: rgba(62, 127, 190, 0.44);
 }
 .kg-graph-node.selected {
-  stroke: #ab4d48;
-  stroke-width: 3;
+  stroke: #0f4470;
+  stroke-width: 3.5;
+  filter: drop-shadow(0 10px 16px rgba(34, 85, 126, 0.18));
 }
 .kg-graph-node-text {
   font-size: 12px;
-  fill: #173248;
+  fill: #163754;
   font-weight: 700;
   pointer-events: none;
-}
-.kg-graph-caption {
-  color: var(--muted);
-  font-size: 0.92rem;
 }
 .kg-side-panel {
   display: grid;
@@ -1395,8 +1442,15 @@ input, select {
     grid-template-columns: 1fr;
   }
 
+  .kg-graph-reset-fab,
   .kg-search-submit {
     width: 100%;
+  }
+
+  .kg-graph-reset-fab {
+    right: 14px;
+    left: 14px;
+    bottom: 14px;
   }
 }
 
