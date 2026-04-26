@@ -101,20 +101,6 @@ class KGService:
             "mrf_footnote": MRF_FOOTNOTE,
         }
 
-    def ddi_exists(
-        self,
-        ingredient_a: str | int,
-        ingredient_b: str | int,
-        minimum_prr: float | None = None,
-    ) -> bool:
-        evidence = self.get_top_ddi_evidence(
-            ingredient_a,
-            ingredient_b,
-            limit=1,
-            minimum_prr=minimum_prr,
-        )
-        return bool(evidence)
-
     def get_top_ddi_evidence(
         self,
         drug1_rxnorm_id: str | int,
@@ -199,67 +185,6 @@ class KGService:
             )
 
         return evidence
-
-    def debug_ddi_pair(self, ingredient_a: str | int, ingredient_b: str | int) -> dict:
-        drug_1 = self._normalize_numeric_string(ingredient_a)
-        drug_2 = self._normalize_numeric_string(ingredient_b)
-        if not self.driver or not drug_1 or not drug_2:
-            return {
-                "driver_available": bool(self.driver),
-                "drug_1": drug_1,
-                "drug_2": drug_2,
-                "strict_match_found": False,
-                "strict_matches": [],
-                "node_probe": [],
-            }
-
-        strict_query = """
-        MATCH (d1:Drug)-[r]-(d2:Drug)
-        WHERE type(r) IN ['Interact_with', 'INTERACT_WITH']
-          AND (
-            (
-              toString(coalesce(d1.rxnorm_id, d1.rxcui)) = $drug_1
-              AND toString(coalesce(d2.rxnorm_id, d2.rxcui)) = $drug_2
-            )
-            OR
-            (
-              toString(coalesce(d1.rxnorm_id, d1.rxcui)) = $drug_2
-              AND toString(coalesce(d2.rxnorm_id, d2.rxcui)) = $drug_1
-            )
-          )
-        RETURN
-          type(r) AS relationship_type,
-          toString(coalesce(d1.rxnorm_id, d1.rxcui)) AS d1_id,
-          coalesce(d1.name, d1.drug_name, '') AS d1_name,
-          toString(coalesce(d2.rxnorm_id, d2.rxcui)) AS d2_id,
-          coalesce(d2.name, d2.drug_name, '') AS d2_name
-        LIMIT 10
-        """
-
-        node_probe_query = """
-        MATCH (d:Drug)
-        WHERE toString(coalesce(d.rxnorm_id, d.rxcui)) IN [$drug_1, $drug_2]
-        RETURN toString(coalesce(d.rxnorm_id, d.rxcui)) AS drug_id,
-               coalesce(d.name, d.drug_name, '') AS drug_name,
-               keys(d) AS available_properties
-        LIMIT 10
-        """
-
-        try:
-            with self.driver.session() as session:
-                strict_matches = [dict(record) for record in session.run(strict_query, drug_1=drug_1, drug_2=drug_2)]
-                node_probe = [dict(record) for record in session.run(node_probe_query, drug_1=drug_1, drug_2=drug_2)]
-        except Neo4jError as exc:
-            raise RuntimeError(f"Neo4j DDI query failed: {exc.message}") from exc
-
-        return {
-            "driver_available": True,
-            "drug_1": drug_1,
-            "drug_2": drug_2,
-            "strict_match_found": bool(strict_matches),
-            "strict_matches": strict_matches,
-            "node_probe": node_probe,
-        }
 
     def check_drug_disease(
         self,

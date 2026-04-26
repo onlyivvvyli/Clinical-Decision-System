@@ -31,9 +31,6 @@ class MappingService:
             raise FileNotFoundError(f"Mapping JSON not found: {path}")
         return json.loads(path.read_text(encoding="utf-8"))
 
-    def list_entries(self) -> list[dict[str, Any]]:
-        return self._load_mapping()
-
     def _save_mapping(self, entries: list[dict[str, Any]]) -> None:
         path = self.settings.resolved_mapping_json_path
         path.parent.mkdir(parents=True, exist_ok=True)
