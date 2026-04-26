@@ -40,8 +40,8 @@ export default function LoginPage() {
         <p className="eyebrow">Clinical Safety Workflow</p>
         <h1>Prescribe with real-time risk alerts before write-back.</h1>
         <p>
-          This prototype pulls patient context from FHIR, checks DDI risk in Neo4j Aura, keeps a
-          placeholder for drug-disease rules, and writes approved prescriptions back.
+          This prototype pulls patient context from FHIR, checks ingredient-level DDI and drug-disease
+          risk in Neo4j Aura, explains alerts with structured evidence, and writes continued prescriptions back.
         </p>
       </div>
       <form className="card login-card" onSubmit={handleSubmit}>
